@@ -36,7 +36,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15
 .nav-section-btn:hover{color:rgba(232,240,236,0.8)}
 .book-nav-item{display:flex;align-items:center;gap:8px;padding:6px 22px 6px 34px;color:rgba(232,240,236,0.5);cursor:pointer;font-size:13px;transition:all .15s;overflow:hidden}
 .book-nav-item:hover{color:rgba(232,240,236,0.85)}
-.folder-nav-item{display:flex;align-items:center;gap:8px;padding:7px 22px 7px 22px;color:rgba(232,240,236,0.6);cursor:pointer;font-size:13px;transition:all .15s}
+.folder-nav-item{display:flex;align-items:center;gap:8px;padding:7px 22px;color:rgba(232,240,236,0.6);cursor:pointer;font-size:13px;transition:all .15s}
 .folder-nav-item:hover{color:#e8f0ec}
 .folder-nav-item.active{color:#e8f0ec;font-weight:500}
 .folder-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -96,13 +96,13 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15
 .folder-header{height:48px;border-radius:var(--radius) var(--radius) 0 0;margin:-20px -20px 16px;display:flex;align-items:center;padding:0 18px;gap:10px}
 .folder-name{font-family:var(--serif);font-size:17px;font-weight:500;margin-bottom:4px}
 .folder-meta{font-size:12px;color:var(--text3)}
-.folder-books-preview{display:flex;gap:4px;margin-top:12px;flex-wrap:wrap}
 .folder-book-chip{font-size:11px;padding:2px 8px;border-radius:12px;background:var(--bg2);color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
 .highlight-item{padding:14px 0;border-bottom:1px solid var(--border2)}
 .highlight-item:last-child{border-bottom:none}
 .highlight-text{font-family:var(--serif);font-size:15px;line-height:1.7;font-style:italic;border-left:3px solid var(--accent2);padding-left:14px;margin-bottom:6px}
 .highlight-note{font-size:13px;color:var(--text2);padding-left:17px;margin-bottom:6px;line-height:1.5}
 .highlight-meta{font-size:12px;color:var(--text3);display:flex;gap:10px;align-items:center;padding-left:17px;flex-wrap:wrap}
+.highlight-img{width:100%;max-height:200px;object-fit:contain;border-radius:8px;margin-bottom:10px}
 .share-btn{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:var(--accent2);background:var(--accent-light);padding:3px 9px;border-radius:20px;cursor:pointer;border:none;font-family:var(--sans)}
 .share-btn:hover{background:#d4e8dc}
 .inbox-item{padding:16px;border-radius:var(--radius-sm);margin-bottom:10px;border:1px solid var(--border)}
@@ -165,642 +165,592 @@ textarea{resize:vertical;min-height:110px;line-height:1.6}
 <script>
 const SUPA_URL='https://zgplzpsywcdarhqyyetw.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpncGx6cHN5d2NkYXJocXl5ZXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyODI1OTYsImV4cCI6MjA5NDg1ODU5Nn0.UaybHdj12Ru6a_ziWTQ0HLubs23kmEDH8EymUDrOACk';
-const ANT_KEY_STORE='rm_ant_key';
+const ANT_KEY='rm_ant_key';
 const FOLDER_COLORS=['#2D4A3E','#4a7c66','#8B7355','#6B5B7B','#4A6B8A','#7A5C4A','#B5614A','#3D6B5A'];
 const BOOK_COLORS=['#2D4A3E','#4a7c66','#8B7355','#6B5B7B','#4A6B8A','#7A5C4A','#3D6B5A','#B5614A'];
-
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
-let S={
-  user:null,profile:null,view:'library',
-  books:[],highlights:{},inbox:[],inboxUnseen:0,
-  folders:[],selectedFolder:null,
-  selectedBook:null,matrix:null,matrixLoading:false,
-  modal:null,authTab:'login',
-  anthropicKey:localStorage.getItem(ANT_KEY_STORE)||'',
-  allProfiles:[],photoTab:'text',
-  selectedColor:FOLDER_COLORS[0],selectedStars:0
-};
+let S={user:null,profile:null,view:'library',books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedFolder:null,selectedBook:null,matrix:null,matrixLoading:false,modal:null,authTab:'login',anthropicKey:localStorage.getItem(ANT_KEY)||'',allProfiles:[],photoTab:'text',selectedColor:FOLDER_COLORS[0],selectedStars:0,_pendingImagePath:null};
 
-function set(p){S={...S,...p};render()}
-function toast(msg,type=''){
-  document.getElementById('toast')?.remove();
-  const el=document.createElement('div');el.id='toast';
-  el.style.cssText=`position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:${type==='error'?'#c0392b':'#1a1814'};color:#fff;padding:10px 20px;border-radius:100px;font-size:13px;z-index:9999;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.3)`;
-  el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2800);
+function set(p){S=Object.assign({},S,p);render();}
+function toast(msg,type){
+  var el=document.getElementById('toast');if(el)el.remove();
+  el=document.createElement('div');el.id='toast';
+  el.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:'+(type==='error'?'#c0392b':'#1a1814')+';color:#fff;padding:10px 20px;border-radius:100px;font-size:13px;z-index:9999;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+  el.textContent=msg;document.body.appendChild(el);setTimeout(function(){el.remove();},2800);
 }
 
-// AUTH
 async function signUp(){
-  const email=document.getElementById('auth-email')?.value?.trim();
-  const pw=document.getElementById('auth-pw')?.value;
-  const name=document.getElementById('auth-name')?.value?.trim();
-  if(!email||!pw||!name){toast('Alle Felder ausfüllen','error');return}
-  const btn=document.getElementById('auth-btn');btn.disabled=true;btn.textContent='...';
-  const {error}=await sb.auth.signUp({email,password:pw,options:{data:{display_name:name}}});
-  if(error){toast(error.message,'error');btn.disabled=false;btn.textContent='Registrieren';return}
-  toast('Bestätigungs-E-Mail gesendet!');btn.disabled=false;btn.textContent='Registrieren';
+  var email=document.getElementById('auth-email').value.trim();
+  var pw=document.getElementById('auth-pw').value;
+  var name=document.getElementById('auth-name').value.trim();
+  if(!email||!pw||!name){toast('Alle Felder ausfüllen','error');return;}
+  var btn=document.getElementById('auth-btn');btn.disabled=true;btn.textContent='...';
+  var res=await sb.auth.signUp({email:email,password:pw,options:{data:{display_name:name}}});
+  if(res.error){toast(res.error.message,'error');btn.disabled=false;btn.textContent='Registrieren';return;}
+  toast('Registriert! Bitte einloggen.');btn.disabled=false;btn.textContent='Registrieren';
+  set({authTab:'login'});
 }
 async function signIn(){
-  const email=document.getElementById('auth-email')?.value?.trim();
-  const pw=document.getElementById('auth-pw')?.value;
-  if(!email||!pw){toast('E-Mail und Passwort eingeben','error');return}
-  const btn=document.getElementById('auth-btn');btn.disabled=true;btn.textContent='...';
-  const {error}=await sb.auth.signInWithPassword({email,password:pw});
-  if(error){toast(error.message,'error');btn.disabled=false;btn.textContent='Einloggen';}
+  var email=document.getElementById('auth-email').value.trim();
+  var pw=document.getElementById('auth-pw').value;
+  if(!email||!pw){toast('E-Mail und Passwort eingeben','error');return;}
+  var btn=document.getElementById('auth-btn');btn.disabled=true;btn.textContent='...';
+  var res=await sb.auth.signInWithPassword({email:email,password:pw});
+  if(res.error){toast(res.error.message,'error');btn.disabled=false;btn.textContent='Einloggen';}
 }
 async function signOut(){
   await sb.auth.signOut();
   set({user:null,profile:null,books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedBook:null,matrix:null});
 }
 
-// DATA
 async function loadAll(){
-  const [booksRes,foldersRes]=await Promise.all([
-    sb.from('books').select('*').order('added_at',{ascending:false}),
-    sb.from('folders').select('*').order('created_at',{ascending:true})
-  ]);
-  set({books:booksRes.data||[],folders:foldersRes.data||[]});
+  var br=await sb.from('books').select('*').order('added_at',{ascending:false});
+  var fr=await sb.from('folders').select('*').order('created_at',{ascending:true});
+  S.books=br.data||[];S.folders=fr.data||[];
 }
 async function loadHighlights(bookId){
-  const {data}=await sb.from('highlights').select('*').eq('book_id',bookId).order('added_at',{ascending:false});
-  set({highlights:{...S.highlights,[bookId]:data||[]}});
+  var res=await sb.from('highlights').select('*').eq('book_id',bookId).order('added_at',{ascending:false});
+  S.highlights=Object.assign({},S.highlights);S.highlights[bookId]=res.data||[];
 }
 async function loadInbox(){
-  const {data}=await sb.from('shared_highlights')
-    .select('*, highlights(text,page,book_id,books(title,author)), profiles!shared_highlights_from_user_id_fkey(display_name)')
-    .eq('to_user_id',S.user.id).order('shared_at',{ascending:false});
-  const inbox=data||[];
-  set({inbox,inboxUnseen:inbox.filter(i=>!i.seen).length});
+  var res=await sb.from('shared_highlights').select('*, highlights(text,page,book_id,books(title,author)), profiles!shared_highlights_from_user_id_fkey(display_name)').eq('to_user_id',S.user.id).order('shared_at',{ascending:false});
+  var inbox=res.data||[];
+  S.inbox=inbox;S.inboxUnseen=inbox.filter(function(i){return !i.seen;}).length;
 }
 async function loadProfiles(){
-  const {data}=await sb.from('profiles').select('*').neq('id',S.user.id);
-  set({allProfiles:data||[]});
+  var res=await sb.from('profiles').select('*').neq('id',S.user.id);
+  S.allProfiles=res.data||[];
 }
 
-// FOLDERS
+async function uploadImage(file,userId){
+  var ext=(file.name||'photo.jpg').split('.').pop()||'jpg';
+  var path=userId+'/'+Date.now()+'.'+ext;
+  var res=await sb.storage.from('highlights').upload(path,file,{upsert:true});
+  if(res.error){toast('Foto-Upload fehlgeschlagen: '+res.error.message,'error');return null;}
+  return path;
+}
+
 async function addFolder(name,color){
-  const {data,error}=await sb.from('folders').insert({user_id:S.user.id,name,color}).select().single();
-  if(error){toast(error.message,'error');return}
-  set({folders:[...S.folders,data],modal:null});toast('Ordner erstellt ✓');
+  var res=await sb.from('folders').insert({user_id:S.user.id,name:name,color:color}).select().single();
+  if(res.error){toast(res.error.message,'error');return;}
+  S.folders=S.folders.concat([res.data]);set({modal:null});toast('Ordner erstellt');
 }
 async function deleteFolder(id){
   if(!confirm('Ordner löschen? Bücher bleiben erhalten.'))return;
   await sb.from('folders').delete().eq('id',id);
   await sb.from('books').update({folder_id:null}).eq('folder_id',id);
-  set({
-    folders:S.folders.filter(f=>f.id!==id),
-    books:S.books.map(b=>b.folder_id===id?{...b,folder_id:null}:b),
-    selectedFolder:S.selectedFolder===id?null:S.selectedFolder,
-    view:S.selectedFolder===id?'folders':S.view,modal:null
-  });
+  S.books=S.books.map(function(b){return b.folder_id===id?Object.assign({},b,{folder_id:null}):b;});
+  S.folders=S.folders.filter(function(f){return f.id!==id;});
+  set({selectedFolder:S.selectedFolder===id?null:S.selectedFolder,view:S.selectedFolder===id?'folders':S.view,modal:null});
   toast('Ordner gelöscht');
 }
 async function assignToFolder(bookId,folderId){
   await sb.from('books').update({folder_id:folderId||null}).eq('id',bookId);
-  set({books:S.books.map(b=>b.id===bookId?{...b,folder_id:folderId||null}:b),modal:null});
-  toast(folderId?'Buch zugeordnet ✓':'Aus Ordner entfernt');
+  S.books=S.books.map(function(b){return b.id===bookId?Object.assign({},b,{folder_id:folderId||null}):b;});
+  set({modal:null});toast(folderId?'Buch zugeordnet':'Aus Ordner entfernt');
 }
-
-// BOOKS
 async function addBook(title,author,status,rating,folderId){
-  const color=BOOK_COLORS[S.books.length%BOOK_COLORS.length];
-  const {data,error}=await sb.from('books').insert({user_id:S.user.id,title,author,color,status,rating,folder_id:folderId||null}).select().single();
-  if(error){toast(error.message,'error');return}
-  set({books:[data,...S.books],modal:null});toast('Buch hinzugefügt ✓');
+  var color=BOOK_COLORS[S.books.length%BOOK_COLORS.length];
+  var res=await sb.from('books').insert({user_id:S.user.id,title:title,author:author,color:color,status:status,rating:rating,folder_id:folderId||null}).select().single();
+  if(res.error){toast(res.error.message,'error');return;}
+  S.books=[res.data].concat(S.books);set({modal:null});toast('Buch hinzugefügt');
 }
 async function updateBook(id,updates){
   await sb.from('books').update(updates).eq('id',id);
-  set({books:S.books.map(b=>b.id===id?{...b,...updates}:b),modal:null});
-  toast('Gespeichert ✓');
+  S.books=S.books.map(function(b){return b.id===id?Object.assign({},b,updates):b;});
+  set({modal:null});toast('Gespeichert');
 }
 async function deleteBook(id){
   if(!confirm('Buch und alle Highlights löschen?'))return;
   await sb.from('books').delete().eq('id',id);
-  const hl={...S.highlights};delete hl[id];
-  set({books:S.books.filter(b=>b.id!==id),highlights:hl,view:'library',selectedBook:null,matrix:null});
+  var hl=Object.assign({},S.highlights);delete hl[id];
+  set({books:S.books.filter(function(b){return b.id!==id;}),highlights:hl,view:'library',selectedBook:null,matrix:null});
   toast('Buch entfernt');
 }
-
-// HIGHLIGHTS
 async function addHighlight(bookId,text,note,page,imagePath){
-  const {data,error}=await sb.from('highlights').insert({book_id:bookId,user_id:S.user.id,text,note,page,image_url:imagePath||null}).select().single();
-  if(error){toast(error.message,'error');return}
-  set({highlights:{...S.highlights,[bookId]:[data,...(S.highlights[bookId]||[])]},modal:null,matrix:null,photoTab:'text'});
-  toast('Highlight gespeichert ✓');
+  var res=await sb.from('highlights').insert({book_id:bookId,user_id:S.user.id,text:text,note:note,page:page,image_url:imagePath||null}).select().single();
+  if(res.error){toast(res.error.message,'error');return;}
+  var existing=S.highlights[bookId]||[];
+  S.highlights=Object.assign({},S.highlights);S.highlights[bookId]=[res.data].concat(existing);
+  set({modal:null,matrix:null,photoTab:'text',_pendingImagePath:null});toast('Highlight gespeichert');
 }
 async function deleteHighlight(bookId,hlId){
   if(!confirm('Highlight löschen?'))return;
   await sb.from('highlights').delete().eq('id',hlId);
-  set({highlights:{...S.highlights,[bookId]:(S.highlights[bookId]||[]).filter(h=>h.id!==hlId)},matrix:null});
+  S.highlights=Object.assign({},S.highlights);
+  S.highlights[bookId]=(S.highlights[bookId]||[]).filter(function(h){return h.id!==hlId;});
+  set({matrix:null});
 }
 async function shareHighlight(hlId,toUserId){
-  const {error}=await sb.from('shared_highlights').insert({from_user_id:S.user.id,to_user_id:toUserId,highlight_id:hlId});
-  if(error){toast(error.message,'error');return}
-  set({modal:null});toast('Highlight geteilt ✓');
+  var res=await sb.from('shared_highlights').insert({from_user_id:S.user.id,to_user_id:toUserId,highlight_id:hlId});
+  if(res.error){toast(res.error.message,'error');return;}
+  set({modal:null});toast('Highlight geteilt');
 }
 async function markSeen(id){
   await sb.from('shared_highlights').update({seen:true}).eq('id',id);
-  const inbox=S.inbox.map(i=>i.id===id?{...i,seen:true}:i);
-  set({inbox,inboxUnseen:Math.max(0,S.inboxUnseen-1)});
+  S.inbox=S.inbox.map(function(i){return i.id===id?Object.assign({},i,{seen:true}):i;});
+  set({inboxUnseen:Math.max(0,S.inboxUnseen-1)});
 }
 
-// Upload image to Supabase Storage
-async function uploadImage(file,userId){
-  const ext=(file.name||'photo').split('.').pop()||'jpg';
-  const path=`${userId}/${Date.now()}.${ext}`;
-  const {error}=await sb.storage.from('highlights').upload(path,file,{upsert:true});
-  if(error){toast('Foto-Upload fehlgeschlagen: '+error.message,'error');return null;}
-  return path;
-}
-
-// MATRIX
 async function analyze(){
-  if(!S.anthropicKey){toast('API Key fehlt','error');set({modal:{type:'settings'}});return}
-  const allHL=S.books.flatMap(b=>(S.highlights[b.id]||[]).map(h=>({book:b.title,author:b.author,text:h.text,image:h.image_url})));
-  if(allHL.length<2){toast('Mindestens 2 Highlights erforderlich');return}
+  if(!S.anthropicKey){toast('API Key fehlt','error');set({modal:{type:'settings'}});return;}
+  var allHL=S.books.reduce(function(acc,b){
+    var hls=(S.highlights[b.id]||[]).map(function(h){return {book:b.title,author:b.author,text:h.text,image:h.image_url};});
+    return acc.concat(hls);
+  },[]);
+  if(allHL.length<2){toast('Mindestens 2 Highlights erforderlich');return;}
   set({matrixLoading:true,view:'matrix'});
-  const textContent=allHL.map(h=>`[${h.book} von ${h.author}] "${h.text}"`).join('\n\n');
-  const imageHighlights=allHL.filter(h=>h.image);
-  const msgContent=[{type:'text',text:`Analysiere diese Highlights und ggf. Fotos:\n\n${textContent}\n\nAntworte NUR als reines JSON:\n{"matrix":[{"thema":"Name","prozent":25,"beschreibung":"Kurz"}],"dominanteMuster":["M1","M2","M3"],"blindSpots":[{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"}],"puzzleStueck":"Ein Satz.","naechstesBuch":"Titel — Autor","kerninsight":"Ein präziser Satz."}\n\n4-6 matrix-Einträge, Summe=100.`}];
-  for(const h of imageHighlights){
+  var textLines=allHL.map(function(h){return '['+h.book+' von '+h.author+'] "'+h.text+'"';}).join('\n\n');
+  var schema='{"matrix":[{"thema":"Name","prozent":25,"beschreibung":"Kurz"}],"dominanteMuster":["M1","M2","M3"],"blindSpots":[{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"}],"puzzleStueck":"Ein Satz.","naechstesBuch":"Titel - Autor","kerninsight":"Ein präziser Satz."}';
+  var promptText='Analysiere diese Highlights:\n\n'+textLines+'\n\nAntworte NUR als reines JSON:\n'+schema+'\n\n4-6 matrix-Einträge, Summe=100.';
+  var msgContent=[{type:'text',text:promptText}];
+  var imageHLs=allHL.filter(function(h){return h.image;});
+  for(var i=0;i<imageHLs.length;i++){
     try{
-      const {data}=await sb.storage.from('highlights').download(h.image);
-      if(data){const reader=new FileReader();const b64=await new Promise(r=>{reader.onload=e=>r(e.target.result.split(',')[1]);reader.readAsDataURL(data);});msgContent.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}});}
+      var dl=await sb.storage.from('highlights').download(imageHLs[i].image);
+      if(dl.data){
+        var b64=await new Promise(function(resolve){
+          var reader=new FileReader();
+          reader.onload=function(e){resolve(e.target.result.split(',')[1]);};
+          reader.readAsDataURL(dl.data);
+        });
+        msgContent.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}});
+      }
     }catch(e){}
   }
   try{
-    const r=await fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:S.anthropicKey,model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:msgContent}]})});
-    const d=await r.json();if(d.error)throw new Error(d.error.message);
-    const m=JSON.parse((d.content?.[0]?.text||'').replace(/\`\`\`json|\`\`\`/g,'').trim());
+    var r=await fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:S.anthropicKey,model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:msgContent}]})});
+    var d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    var m=JSON.parse((d.content&&d.content[0]?d.content[0].text:'').replace(/```json|```/g,'').trim());
     set({matrix:m,matrixLoading:false});
-  }catch(e){set({matrixLoading:false});toast('Fehler: '+e.message,'error')}
+  }catch(e){set({matrixLoading:false});toast('Fehler: '+e.message,'error');}
 }
 
-// HELPERS
-function starsHTML(n){return'★'.repeat(n)+'☆'.repeat(5-n)}
-function statusLabel(s){return s==='reading'?'Lese ich':s==='done'?'Gelesen':'Möchte lesen'}
-function statusClass(s){return'status-'+(s==='reading'?'reading':s==='done'?'done':'want')}
-function totalHL(){return S.books.reduce((s,b)=>s+(S.highlights[b.id]||[]).length,0)}
-function folderBooks(fid){return S.books.filter(b=>b.folder_id===fid)}
-function unassignedBooks(){return S.books.filter(b=>!b.folder_id)}
+function starsHTML(n){return '★'.repeat(n)+'☆'.repeat(5-n);}
+function statusLabel(s){return s==='reading'?'Lese ich':s==='done'?'Gelesen':'Möchte lesen';}
+function statusClass(s){return 'status-'+(s==='reading'?'reading':s==='done'?'done':'want');}
+function totalHL(){return S.books.reduce(function(s,b){return s+(S.highlights[b.id]||[]).length;},0);}
+function folderBooks(fid){return S.books.filter(function(b){return b.folder_id===fid;});}
 
-// RENDER
-function render(){
-  if(!S.user){renderAuth();return}
-  renderApp();
-}
+function render(){if(!S.user){renderAuth();return;}renderApp();}
 
 function renderAuth(){
-  const isLogin=S.authTab==='login';
-  document.getElementById('root').innerHTML=`<div class="auth-screen"><div class="auth-card">
-    <div class="auth-logo">readmind</div>
-    <div class="auth-sub">Deine persönliche Wissensmatrix</div>
-    <div class="tabs">
-      <div class="tab ${isLogin?'active':''}" onclick="set({authTab:'login'})">Einloggen</div>
-      <div class="tab ${!isLogin?'active':''}" onclick="set({authTab:'signup'})">Registrieren</div>
-    </div>
-    ${!isLogin?'<div class="form-group"><label>Name</label><input type="text" id="auth-name" placeholder="Dein Name..."/></div>':''}
-    <div class="form-group"><label>E-Mail</label><input type="email" id="auth-email" placeholder="du@email.com"/></div>
-    <div class="form-group"><label>Passwort</label><input type="password" id="auth-pw" placeholder="Mindestens 6 Zeichen"/></div>
-    <button class="btn btn-primary" id="auth-btn" style="width:100%;justify-content:center;padding:12px" onclick="${isLogin?'signIn()':'signUp()'}">
-      ${isLogin?'Einloggen':'Registrieren'}
-    </button>
-  </div></div>`;
+  var isLogin=S.authTab==='login';
+  document.getElementById('root').innerHTML='<div class="auth-screen"><div class="auth-card">'
+    +'<div class="auth-logo">readmind</div>'
+    +'<div class="auth-sub">Deine persönliche Wissensmatrix</div>'
+    +'<div class="tabs">'
+    +'<div class="tab '+(isLogin?'active':'')+'" onclick="set({authTab:\'login\'})">Einloggen</div>'
+    +'<div class="tab '+(!isLogin?'active':'')+'" onclick="set({authTab:\'signup\'})">Registrieren</div>'
+    +'</div>'
+    +(!isLogin?'<div class="form-group"><label>Name</label><input type="text" id="auth-name" placeholder="Dein Name..."/></div>':'')
+    +'<div class="form-group"><label>E-Mail</label><input type="email" id="auth-email" placeholder="du@email.com"/></div>'
+    +'<div class="form-group"><label>Passwort</label><input type="password" id="auth-pw" placeholder="Mindestens 6 Zeichen"/></div>'
+    +'<button class="btn btn-primary" id="auth-btn" style="width:100%;justify-content:center;padding:12px" onclick="'+(isLogin?'signIn()':'signUp()')+'">'+( isLogin?'Einloggen':'Registrieren')+'</button>'
+    +'</div></div>';
 }
 
 function renderApp(){
-  const v=S.view;
-  const book=S.selectedBook?S.books.find(b=>b.id===S.selectedBook):null;
-  let main='';
-  if(v==='library')main=viewLibrary();
-  else if(v==='folders')main=viewFolders();
-  else if(v==='folder'&&S.selectedFolder)main=viewFolder(S.folders.find(f=>f.id===S.selectedFolder));
-  else if(v==='book'&&book)main=viewBook(book);
-  else if(v==='matrix')main=viewMatrix();
-  else if(v==='inbox')main=viewInbox();
-  else if(v==='friend')main=viewFriend();
+  var book=S.selectedBook?S.books.find(function(b){return b.id===S.selectedBook;}):null;
+  var main='';
+  if(S.view==='library')main=viewLibrary();
+  else if(S.view==='folders')main=viewFolders();
+  else if(S.view==='folder'&&S.selectedFolder)main=viewFolder(S.folders.find(function(f){return f.id===S.selectedFolder;}));
+  else if(S.view==='book'&&book)main=viewBook(book);
+  else if(S.view==='matrix')main=viewMatrix();
+  else if(S.view==='inbox')main=viewInbox();
+  else if(S.view==='friend')main=viewFriend();
   else main=viewLibrary();
-
-  let modal='';
+  var modal='';
   if(S.modal){
-    const m=S.modal;
-    if(m.type==='addBook')modal=modalAddBook();
-    else if(m.type==='addHighlight')modal=modalAddHighlight(m.bookId);
-    else if(m.type==='share')modal=modalShare(m.hlId);
-    else if(m.type==='settings')modal=modalSettings();
-    else if(m.type==='editBook')modal=modalEditBook(m.book);
-    else if(m.type==='addFolder')modal=modalAddFolder();
-    else if(m.type==='assignFolder')modal=modalAssignFolder(m.bookId);
+    var mt=S.modal.type;
+    if(mt==='addBook')modal=modalAddBook();
+    else if(mt==='addHighlight')modal=modalAddHighlight(S.modal.bookId);
+    else if(mt==='share')modal=modalShare(S.modal.hlId);
+    else if(mt==='settings')modal=modalSettings();
+    else if(mt==='editBook')modal=modalEditBook(S.modal.book);
+    else if(mt==='addFolder')modal=modalAddFolder();
+    else if(mt==='assignFolder')modal=modalAssignFolder(S.modal.bookId);
   }
-
-  document.getElementById('root').innerHTML=`<div class="app">${renderSidebar()}<div class="main">${main}${renderBottomNav()}</div></div>${modal}`;
+  document.getElementById('root').innerHTML='<div class="app">'+renderSidebar()+'<div class="main">'+main+renderBottomNav()+'</div></div>'+modal;
 }
 
 function renderSidebar(){
-  const name=S.profile?.display_name||S.user?.email?.split('@')[0]||'Du';
-  const folderItems=S.folders.map(f=>`
-    <div class="folder-nav-item ${S.view==='folder'&&S.selectedFolder===f.id?'active':''}" onclick="openFolder('${f.id}')">
-      <div class="folder-dot" style="background:${f.color}"></div>
-      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${f.name}</span>
-      <span style="font-size:11px;color:rgba(232,240,236,0.3)">${folderBooks(f.id).length}</span>
-    </div>`).join('');
-  const bookItems=S.books.slice(0,6).map(b=>`<div class="book-nav-item" onclick="selectBook('${b.id}')"><div class="book-dot" style="background:${b.color}"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.title}</span></div>`).join('');
-
-  return`<div class="sidebar">
-    <div class="sidebar-logo">readmind<span>Wissensmatrix</span></div>
-    <nav>
-      <div class="nav-item ${S.view==='library'&&!S.selectedBook?'active':''}" onclick="set({view:'library',selectedBook:null,selectedFolder:null})">📚 Bibliothek</div>
-      <div class="nav-item ${S.view==='folders'||S.view==='folder'?'active':''}" onclick="set({view:'folders',selectedBook:null})">📁 Ordner</div>
-      <div class="nav-item ${S.view==='matrix'?'active':''}" onclick="set({view:'matrix'})">🧠 Matrix</div>
-      <div class="nav-item ${S.view==='inbox'?'active':''}" onclick="openInbox()">📬 Posteingang${S.inboxUnseen>0?`<span class="nav-badge">${S.inboxUnseen}</span>`:''}</div>
-      <div class="nav-item ${S.view==='friend'?'active':''}" onclick="set({view:'friend'})">👤 Freundin</div>
-      ${S.folders.length?`<div class="nav-section"><span>Ordner</span><button class="nav-section-btn" onclick="set({modal:{type:'addFolder'}})">+</button></div>${folderItems}`:`<div class="nav-section"><span>Ordner</span><button class="nav-section-btn" onclick="set({modal:{type:'addFolder'}})">+</button></div>`}
-      ${S.books.length?`<div class="nav-section"><span>Bücher</span></div>${bookItems}`:''}
-    </nav>
-    <div class="user-info">
-      <div class="user-name">${name}</div>
-      <div class="user-email">${S.user?.email||''}</div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-secondary btn-sm" onclick="set({modal:{type:'settings'}})">⚙️</button>
-        <button class="btn btn-secondary btn-sm" onclick="signOut()">Logout</button>
-      </div>
-    </div>
-  </div>`;
+  var name=S.profile&&S.profile.display_name?S.profile.display_name:(S.user.email||'').split('@')[0];
+  var folderItems=S.folders.map(function(f){
+    return '<div class="folder-nav-item '+(S.view==='folder'&&S.selectedFolder===f.id?'active':'')+'" onclick="openFolder(\''+f.id+'\')">'
+      +'<div class="folder-dot" style="background:'+f.color+'"></div>'
+      +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+f.name+'</span>'
+      +'<span style="font-size:11px;color:rgba(232,240,236,0.3)">'+folderBooks(f.id).length+'</span>'
+      +'</div>';
+  }).join('');
+  var bookItems=S.books.slice(0,6).map(function(b){
+    return '<div class="book-nav-item" onclick="selectBook(\''+b.id+'\')">'
+      +'<div class="book-dot" style="background:'+b.color+'"></div>'
+      +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+b.title+'</span>'
+      +'</div>';
+  }).join('');
+  return '<div class="sidebar">'
+    +'<div class="sidebar-logo">readmind<span>Wissensmatrix</span></div>'
+    +'<nav>'
+    +'<div class="nav-item '+(S.view==='library'&&!S.selectedBook?'active':'')+'" onclick="set({view:\'library\',selectedBook:null,selectedFolder:null})">📚 Bibliothek</div>'
+    +'<div class="nav-item '+(S.view==='folders'||S.view==='folder'?'active':'')+'" onclick="set({view:\'folders\',selectedBook:null})">📁 Ordner</div>'
+    +'<div class="nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})">🧠 Matrix</div>'
+    +'<div class="nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()">📬 Posteingang'+(S.inboxUnseen>0?'<span class="nav-badge">'+S.inboxUnseen+'</span>':'')+'</div>'
+    +'<div class="nav-item '+(S.view==='friend'?'active':'')+'" onclick="set({view:\'friend\'})">👤 Freundin</div>'
+    +'<div class="nav-section"><span>Ordner</span><button class="nav-section-btn" onclick="set({modal:{type:\'addFolder\'}})">+</button></div>'
+    +folderItems
+    +(S.books.length?'<div class="nav-section"><span>Bücher</span></div>'+bookItems:'')
+    +'</nav>'
+    +'<div class="user-info">'
+    +'<div class="user-name">'+name+'</div>'
+    +'<div class="user-email">'+(S.user.email||'')+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:10px">'
+    +'<button class="btn btn-secondary btn-sm" onclick="set({modal:{type:\'settings\'}})">⚙️</button>'
+    +'<button class="btn btn-secondary btn-sm" onclick="signOut()">Logout</button>'
+    +'</div></div></div>';
 }
 
 function renderBottomNav(){
-  return`<div class="bottom-nav">
-    <div class="bottom-nav-item ${S.view==='library'?'active':''}" onclick="set({view:'library',selectedBook:null})"><span class="bottom-nav-icon">📚</span><span>Bücher</span></div>
-    <div class="bottom-nav-item ${S.view==='folders'||S.view==='folder'?'active':''}" onclick="set({view:'folders',selectedBook:null})"><span class="bottom-nav-icon">📁</span><span>Ordner</span></div>
-    <div class="bottom-nav-item ${S.view==='matrix'?'active':''}" onclick="set({view:'matrix'})"><span class="bottom-nav-icon">🧠</span><span>Matrix</span></div>
-    <div class="bottom-nav-item ${S.view==='inbox'?'active':''}" onclick="openInbox()" style="position:relative"><span class="bottom-nav-icon">📬</span>${S.inboxUnseen>0?`<span class="bottom-badge">${S.inboxUnseen}</span>`:''}<span>Eingang</span></div>
-    <div class="bottom-nav-item" onclick="set({modal:{type:'settings'}})"><span class="bottom-nav-icon">⚙️</span><span>More</span></div>
-  </div>`;
+  return '<div class="bottom-nav">'
+    +'<div class="bottom-nav-item '+(S.view==='library'?'active':'')+'" onclick="set({view:\'library\',selectedBook:null})"><span class="bottom-nav-icon">📚</span><span>Bücher</span></div>'
+    +'<div class="bottom-nav-item '+(S.view==='folders'||S.view==='folder'?'active':'')+'" onclick="set({view:\'folders\'})"><span class="bottom-nav-icon">📁</span><span>Ordner</span></div>'
+    +'<div class="bottom-nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})"><span class="bottom-nav-icon">🧠</span><span>Matrix</span></div>'
+    +'<div class="bottom-nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()" style="position:relative"><span class="bottom-nav-icon">📬</span>'+(S.inboxUnseen>0?'<span class="bottom-badge">'+S.inboxUnseen+'</span>':'')+'<span>Eingang</span></div>'
+    +'<div class="bottom-nav-item" onclick="set({modal:{type:\'settings\'}})"><span class="bottom-nav-icon">⚙️</span><span>More</span></div>'
+    +'</div>';
 }
 
 function viewLibrary(){
-  const cards=S.books.map(b=>{
-    const folder=S.folders.find(f=>f.id===b.folder_id);
-    return`<div class="card book-card" onclick="selectBook('${b.id}')">
-      <div class="book-spine" style="background:${b.color}"></div>
-      <div class="book-title">${b.title}</div>
-      <div class="book-author">${b.author}</div>
-      <div class="book-meta">
-        <span class="status-badge ${statusClass(b.status)}">${statusLabel(b.status)}</span>
-        ${b.rating>0?`<span class="stars">${starsHTML(b.rating)}</span>`:''}
-        ${folder?`<span style="font-size:11px;color:var(--accent2)">📁 ${folder.name}</span>`:''}
-        <span style="margin-left:auto">✦ ${(S.highlights[b.id]||[]).length}</span>
-      </div>
-    </div>`;}).join('');
-  return`<div class="page-header"><div><div class="page-title">Bibliothek</div><div class="page-subtitle">${S.books.length} Bücher · ${totalHL()} Highlights</div></div><button class="btn btn-primary" onclick="set({modal:{type:'addBook'}})">+ Buch</button></div>
-  <div class="content">
-    <div class="stat-grid">
-      <div class="stat-card"><div class="stat-label">Bücher</div><div class="stat-value">${S.books.length}</div></div>
-      <div class="stat-card"><div class="stat-label">Highlights</div><div class="stat-value">${totalHL()}</div></div>
-      <div class="stat-card"><div class="stat-label">Ordner</div><div class="stat-value">${S.folders.length}</div></div>
-      <div class="stat-card"><div class="stat-label">Posteingang</div><div class="stat-value" style="font-size:${S.inboxUnseen>0?'20px':'26px'};margin-top:${S.inboxUnseen>0?'6px':'4px'}">${S.inboxUnseen>0?`${S.inboxUnseen} neu`:'—'}</div></div>
-    </div>
-    ${S.books.length?`<div class="grid-auto">${cards}</div>`:`<div class="empty"><div class="empty-icon">📖</div><div class="empty-title">Noch keine Bücher</div><div class="empty-sub">Füge dein erstes Buch hinzu.</div><button class="btn btn-primary" onclick="set({modal:{type:'addBook'}})">Erstes Buch</button></div>`}
-  </div>
-  <button class="fab" onclick="set({modal:{type:'addBook'}})">+</button>`;
+  var cards=S.books.map(function(b){
+    var folder=S.folders.find(function(f){return f.id===b.folder_id;});
+    return '<div class="card book-card" onclick="selectBook(\''+b.id+'\')">'
+      +'<div class="book-spine" style="background:'+b.color+'"></div>'
+      +'<div class="book-title">'+b.title+'</div>'
+      +'<div class="book-author">'+b.author+'</div>'
+      +'<div class="book-meta">'
+      +'<span class="status-badge '+statusClass(b.status)+'">'+statusLabel(b.status)+'</span>'
+      +(b.rating>0?'<span class="stars">'+starsHTML(b.rating)+'</span>':'')
+      +(folder?'<span style="font-size:11px;color:var(--accent2)">📁 '+folder.name+'</span>':'')
+      +'<span style="margin-left:auto">✦ '+((S.highlights[b.id]||[]).length)+'</span>'
+      +'</div></div>';
+  }).join('');
+  return '<div class="page-header"><div><div class="page-title">Bibliothek</div><div class="page-subtitle">'+S.books.length+' Bücher · '+totalHL()+' Highlights</div></div>'
+    +'<button class="btn btn-primary" onclick="set({modal:{type:\'addBook\'}})">+ Buch</button></div>'
+    +'<div class="content">'
+    +'<div class="stat-grid">'
+    +'<div class="stat-card"><div class="stat-label">Bücher</div><div class="stat-value">'+S.books.length+'</div></div>'
+    +'<div class="stat-card"><div class="stat-label">Highlights</div><div class="stat-value">'+totalHL()+'</div></div>'
+    +'<div class="stat-card"><div class="stat-label">Ordner</div><div class="stat-value">'+S.folders.length+'</div></div>'
+    +'<div class="stat-card"><div class="stat-label">Posteingang</div><div class="stat-value" style="font-size:'+(S.inboxUnseen>0?'20px':'26px')+';margin-top:'+(S.inboxUnseen>0?'6px':'4px')+'">'+( S.inboxUnseen>0?S.inboxUnseen+' neu':'—')+'</div></div>'
+    +'</div>'
+    +(S.books.length?'<div class="grid-auto">'+cards+'</div>':'<div class="empty"><div class="empty-icon">📖</div><div class="empty-title">Noch keine Bücher</div><div class="empty-sub">Füge dein erstes Buch hinzu.</div><button class="btn btn-primary" onclick="set({modal:{type:\'addBook\'}})">Erstes Buch</button></div>')
+    +'</div>'
+    +'<button class="fab" onclick="set({modal:{type:\'addBook\'}})">+</button>';
 }
 
 function viewFolders(){
-  const folderCards=S.folders.map(f=>{
-    const books=folderBooks(f.id);
-    const chips=books.slice(0,4).map(b=>`<span class="folder-book-chip">${b.title}</span>`).join('');
-    return`<div class="card folder-card" onclick="openFolder('${f.id}')">
-      <div class="folder-header" style="background:${f.color}">
-        <span style="font-size:20px">📁</span>
-        <span style="font-family:var(--serif);font-size:16px;color:#e8f0ec;font-weight:500">${f.name}</span>
-      </div>
-      <div class="folder-name">${f.name}</div>
-      <div class="folder-meta">${books.length} Bücher · ${books.reduce((s,b)=>s+(S.highlights[b.id]||[]).length,0)} Highlights</div>
-      ${books.length?`<div class="folder-books-preview">${chips}${books.length>4?`<span class="folder-book-chip">+${books.length-4}</span>`:''}</div>`:''}
-    </div>`;}).join('');
-
-  const unassigned=unassignedBooks();
-  return`<div class="page-header"><div><div class="page-title">Ordner</div><div class="page-subtitle">${S.folders.length} Ordner · ${unassigned.length} nicht zugeordnet</div></div><button class="btn btn-primary" onclick="set({modal:{type:'addFolder'}})">+ Ordner</button></div>
-  <div class="content">
-    ${S.folders.length?`<div class="grid-auto" style="margin-bottom:24px">${folderCards}</div>`:''}
-    ${!S.folders.length?`<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">Noch keine Ordner</div><div class="empty-sub">Erstelle thematische Ordner um deine Bücher zu clustern.</div><button class="btn btn-primary" onclick="set({modal:{type:'addFolder'}})">Ersten Ordner erstellen</button></div>`:''}
-    ${S.folders.length&&unassigned.length?`<div class="section-header" style="margin-top:8px"><div class="section-title" style="font-size:15px;color:var(--text3)">Nicht zugeordnet (${unassigned.length})</div></div><div class="grid-auto">${unassigned.map(b=>`<div class="card book-card" onclick="selectBook('${b.id}')"><div class="book-spine" style="background:${b.color}"></div><div class="book-title">${b.title}</div><div class="book-author">${b.author}</div></div>`).join('')}</div>`:''}
-  </div>
-  <button class="fab" onclick="set({modal:{type:'addFolder'}})">+</button>`;
+  var folderCards=S.folders.map(function(f){
+    var books=folderBooks(f.id);
+    var chips=books.slice(0,4).map(function(b){return '<span class="folder-book-chip">'+b.title+'</span>';}).join('');
+    return '<div class="card folder-card" onclick="openFolder(\''+f.id+'\')">'
+      +'<div class="folder-header" style="background:'+f.color+'"><span style="font-size:20px">📁</span><span style="font-family:var(--serif);font-size:16px;color:#e8f0ec;font-weight:500">'+f.name+'</span></div>'
+      +'<div class="folder-name">'+f.name+'</div>'
+      +'<div class="folder-meta">'+books.length+' Bücher</div>'
+      +(books.length?'<div style="display:flex;gap:4px;margin-top:10px;flex-wrap:wrap">'+chips+(books.length>4?'<span class="folder-book-chip">+'+( books.length-4)+'</span>':'')+'</div>':'')
+      +'</div>';
+  }).join('');
+  var unassigned=S.books.filter(function(b){return !b.folder_id;});
+  return '<div class="page-header"><div><div class="page-title">Ordner</div><div class="page-subtitle">'+S.folders.length+' Ordner</div></div>'
+    +'<button class="btn btn-primary" onclick="set({modal:{type:\'addFolder\'}})">+ Ordner</button></div>'
+    +'<div class="content">'
+    +(S.folders.length?'<div class="grid-auto" style="margin-bottom:24px">'+folderCards+'</div>':'<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">Noch keine Ordner</div><div class="empty-sub">Erstelle thematische Ordner.</div><button class="btn btn-primary" onclick="set({modal:{type:\'addFolder\'}})">Ersten Ordner erstellen</button></div>')
+    +(S.folders.length&&unassigned.length?'<div style="font-size:14px;color:var(--text3);margin-bottom:12px">Nicht zugeordnet ('+unassigned.length+')</div><div class="grid-auto">'+unassigned.map(function(b){return '<div class="card book-card" onclick="selectBook(\''+b.id+'\')" ><div class="book-spine" style="background:'+b.color+'"></div><div class="book-title">'+b.title+'</div><div class="book-author">'+b.author+'</div></div>';}).join('')+'</div>':'')
+    +'</div>'
+    +'<button class="fab" onclick="set({modal:{type:\'addFolder\'}})">+</button>';
 }
 
 function viewFolder(folder){
   if(!folder)return viewFolders();
-  const books=folderBooks(folder.id);
-  const cards=books.map(b=>`<div class="card book-card" onclick="selectBook('${b.id}')">
-    <div class="book-spine" style="background:${b.color}"></div>
-    <div class="book-title">${b.title}</div>
-    <div class="book-author">${b.author}</div>
-    <div class="book-meta">
-      <span class="status-badge ${statusClass(b.status)}">${statusLabel(b.status)}</span>
-      ${b.rating>0?`<span class="stars">${starsHTML(b.rating)}</span>`:''}
-      <span style="margin-left:auto">✦ ${(S.highlights[b.id]||[]).length}</span>
-    </div>
-  </div>`).join('');
-  return`<div class="page-header">
-    <div><div style="font-size:13px;color:var(--text3);margin-bottom:4px;cursor:pointer" onclick="set({view:'folders',selectedFolder:null})">← Ordner</div>
-    <div class="page-title">${folder.name}</div>
-    <div class="page-subtitle">${books.length} Bücher</div></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-danger btn-sm" onclick="deleteFolder('${folder.id}')">Löschen</button>
-      <button class="btn btn-primary" onclick="set({modal:{type:'addBook',folderId:'${folder.id}'}})">+ Buch</button>
-    </div>
-  </div>
-  <div class="content">${books.length?`<div class="grid-auto">${cards}</div>`:`<div class="empty"><div class="empty-icon">📚</div><div class="empty-title">Noch keine Bücher</div><div class="empty-sub">Füge Bücher zu diesem Ordner hinzu oder weise bestehende Bücher zu.</div><button class="btn btn-primary" onclick="set({modal:{type:'addBook',folderId:'${folder.id}'}})">Buch hinzufügen</button></div>`}</div>
-  <button class="fab" onclick="set({modal:{type:'addBook',folderId:'${folder.id}'}})">+</button>`;
+  var books=folderBooks(folder.id);
+  var cards=books.map(function(b){
+    return '<div class="card book-card" onclick="selectBook(\''+b.id+'\')">'
+      +'<div class="book-spine" style="background:'+b.color+'"></div>'
+      +'<div class="book-title">'+b.title+'</div>'
+      +'<div class="book-author">'+b.author+'</div>'
+      +'<div class="book-meta"><span class="status-badge '+statusClass(b.status)+'">'+statusLabel(b.status)+'</span>'+(b.rating>0?'<span class="stars">'+starsHTML(b.rating)+'</span>':'')+'<span style="margin-left:auto">✦ '+((S.highlights[b.id]||[]).length)+'</span></div>'
+      +'</div>';
+  }).join('');
+  return '<div class="page-header">'
+    +'<div><div style="font-size:13px;color:var(--text3);margin-bottom:4px;cursor:pointer" onclick="set({view:\'folders\',selectedFolder:null})">← Ordner</div>'
+    +'<div class="page-title">'+folder.name+'</div>'
+    +'<div class="page-subtitle">'+books.length+' Bücher</div></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn btn-danger btn-sm" onclick="deleteFolder(\''+folder.id+'\')">Löschen</button>'
+    +'<button class="btn btn-primary" onclick="set({modal:{type:\'addBook\',folderId:\''+folder.id+'\'}})">+ Buch</button>'
+    +'</div></div>'
+    +'<div class="content">'
+    +(books.length?'<div class="grid-auto">'+cards+'</div>':'<div class="empty"><div class="empty-icon">📚</div><div class="empty-title">Noch keine Bücher</div><button class="btn btn-primary" onclick="set({modal:{type:\'addBook\',folderId:\''+folder.id+'\'}})">Buch hinzufügen</button></div>')
+    +'</div>'
+    +'<button class="fab" onclick="set({modal:{type:\'addBook\',folderId:\''+folder.id+'\'}})">+</button>';
 }
 
 function viewBook(b){
-  const hls=S.highlights[b.id]||[];
-  const folder=S.folders.find(f=>f.id===b.folder_id);
-  const hlHTML=hls.map(h=>{
-    const imgUrl=h.image_url?sb.storage.from('highlights').getPublicUrl(h.image_url).data.publicUrl:null;
-    return`<div class="highlight-item">
-    ${imgUrl?`<img src="${imgUrl}" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;margin-bottom:10px"/>`:'' }
-    <div class="highlight-text">${h.text}</div>
-    ${h.note?`<div class="highlight-note">💭 ${h.note}</div>`:''}
-    <div class="highlight-meta">
-      ${h.page?`<span>S. ${h.page}</span>`:''}
-      <button class="share-btn" onclick="openShare('${h.id}')">↗ Teilen</button>
-      <button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px" onclick="deleteHighlight('${b.id}','${h.id}')">×</button>
-    </div>
-  </div>`;}).join('');
-  return`<div class="page-header">
-    <div><div style="font-size:13px;color:var(--text3);margin-bottom:4px;cursor:pointer" onclick="${folder?`openFolder('${folder.id}')`:"set({view:'library',selectedBook:null})"}">← ${folder?folder.name:'Bibliothek'}</div>
-    <div class="page-title">${b.title}</div>
-    <div class="page-subtitle">${b.author}${folder?` · 📁 ${folder.name}`:''}</div></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-secondary btn-sm" onclick="set({modal:{type:'assignFolder',bookId:'${b.id}'}})">📁</button>
-      <button class="btn btn-secondary btn-sm" onclick="set({modal:{type:'editBook',book:S.books.find(x=>x.id==='${b.id}')}})">✏️</button>
-      <button class="btn btn-primary" onclick="set({modal:{type:'addHighlight',bookId:'${b.id}'}})">+ Highlight</button>
-    </div>
-  </div>
-  <div class="content"><div class="card">${hls.length?hlHTML:`<div class="empty" style="padding:36px 20px"><div class="empty-title" style="font-size:17px">Keine Highlights</div><div class="empty-sub">Füge deine ersten markierten Stellen hinzu.</div><button class="btn btn-primary" onclick="set({modal:{type:'addHighlight',bookId:'${b.id}'}})">Highlight hinzufügen</button></div>`}</div></div>
-  <button class="fab" onclick="set({modal:{type:'addHighlight',bookId:'${b.id}'}})">+</button>`;
+  var hls=S.highlights[b.id]||[];
+  var folder=S.folders.find(function(f){return f.id===b.folder_id;});
+  var hlHTML=hls.map(function(h){
+    var imgUrl=h.image_url?sb.storage.from('highlights').getPublicUrl(h.image_url).data.publicUrl:null;
+    return '<div class="highlight-item">'
+      +(imgUrl?'<img src="'+imgUrl+'" class="highlight-img"/>':'')
+      +'<div class="highlight-text">'+h.text+'</div>'
+      +(h.note?'<div class="highlight-note">💭 '+h.note+'</div>':'')
+      +'<div class="highlight-meta">'
+      +(h.page?'<span>S. '+h.page+'</span>':'')
+      +'<button class="share-btn" onclick="openShare(\''+h.id+'\')">↗ Teilen</button>'
+      +'<button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px" onclick="deleteHighlight(\''+b.id+'\',\''+h.id+'\')">×</button>'
+      +'</div></div>';
+  }).join('');
+  return '<div class="page-header">'
+    +'<div><div style="font-size:13px;color:var(--text3);margin-bottom:4px;cursor:pointer" onclick="'+(folder?'openFolder(\''+folder.id+'\')':'set({view:\'library\',selectedBook:null})')+'">← '+(folder?folder.name:'Bibliothek')+'</div>'
+    +'<div class="page-title">'+b.title+'</div>'
+    +'<div class="page-subtitle">'+b.author+(folder?' · 📁 '+folder.name:'')+'</div></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn btn-secondary btn-sm" onclick="set({modal:{type:\'assignFolder\',bookId:\''+b.id+'\'}})">📁</button>'
+    +'<button class="btn btn-secondary btn-sm" onclick="set({modal:{type:\'editBook\',book:S.books.find(function(x){return x.id===\''+b.id+'\';})}})">✏️</button>'
+    +'<button class="btn btn-primary" onclick="set({modal:{type:\'addHighlight\',bookId:\''+b.id+'\'}})">+ Highlight</button>'
+    +'</div></div>'
+    +'<div class="content"><div class="card">'
+    +(hls.length?hlHTML:'<div class="empty" style="padding:36px 20px"><div class="empty-title" style="font-size:17px">Keine Highlights</div><div class="empty-sub">Füge deine ersten markierten Stellen hinzu.</div><button class="btn btn-primary" onclick="set({modal:{type:\'addHighlight\',bookId:\''+b.id+'\'}})">Highlight hinzufügen</button></div>')
+    +'</div></div>'
+    +'<button class="fab" onclick="set({modal:{type:\'addHighlight\',bookId:\''+b.id+'\'}})">+</button>';
 }
 
 function viewInbox(){
-  const items=S.inbox.map(i=>`<div class="inbox-item ${i.seen?'':'unseen'}" onclick="markSeen('${i.id}')">
-    <div class="inbox-from">Von ${i.profiles?.display_name||'Freundin'}${!i.seen?' · <span style="color:var(--accent2)">neu</span>':''}</div>
-    <div class="inbox-book">📚 ${i.highlights?.books?.title||''}</div>
-    <div class="inbox-text">${i.highlights?.text||''}</div>
-    ${i.highlights?.page?`<div style="font-size:11px;color:var(--text3);margin-top:6px">S. ${i.highlights.page}</div>`:''}
-  </div>`).join('');
-  return`<div class="page-header"><div><div class="page-title">Posteingang</div><div class="page-subtitle">${S.inbox.length} Highlights · ${S.inboxUnseen} ungelesen</div></div></div>
-  <div class="content">${S.inbox.length?items:`<div class="empty"><div class="empty-icon">📬</div><div class="empty-title">Posteingang leer</div><div class="empty-sub">Wenn deine Freundin ein Highlight teilt, erscheint es hier.</div></div>`}</div>`;
+  var items=S.inbox.map(function(i){
+    return '<div class="inbox-item '+(i.seen?'':'unseen')+'" onclick="markSeen(\''+i.id+'\')">'
+      +'<div class="inbox-from">Von '+(i.profiles&&i.profiles.display_name?i.profiles.display_name:'Freundin')+(i.seen?'':' · <span style="color:var(--accent2)">neu</span>')+'</div>'
+      +'<div class="inbox-book">📚 '+(i.highlights&&i.highlights.books?i.highlights.books.title:'')+'</div>'
+      +'<div class="inbox-text">'+(i.highlights?i.highlights.text:'')+'</div>'
+      +(i.highlights&&i.highlights.page?'<div style="font-size:11px;color:var(--text3);margin-top:6px">S. '+i.highlights.page+'</div>':'')
+      +'</div>';
+  }).join('');
+  return '<div class="page-header"><div><div class="page-title">Posteingang</div><div class="page-subtitle">'+S.inbox.length+' Highlights · '+S.inboxUnseen+' ungelesen</div></div></div>'
+    +'<div class="content">'+(S.inbox.length?items:'<div class="empty"><div class="empty-icon">📬</div><div class="empty-title">Posteingang leer</div><div class="empty-sub">Wenn deine Freundin ein Highlight teilt, erscheint es hier.</div></div>')+'</div>';
 }
 
 function viewFriend(){
-  const profiles=S.allProfiles;
-  return`<div class="page-header"><div><div class="page-title">Freundinnen</div><div class="page-subtitle">Registrierte Nutzerinnen</div></div></div>
-  <div class="content">${profiles.length?profiles.map(p=>`<div class="card" style="text-align:center;padding:32px">
-    <div style="width:56px;height:56px;border-radius:50%;background:var(--accent);color:#e8f0ec;display:flex;align-items:center;justify-content:center;font-size:22px;font-family:var(--serif);margin:0 auto 14px">${(p.display_name||'?')[0].toUpperCase()}</div>
-    <div style="font-family:var(--serif);font-size:18px;margin-bottom:4px">${p.display_name||p.email}</div>
-    <div style="font-size:13px;color:var(--text3)">${p.email}</div>
-  </div>`).join(''):`<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">Noch niemand registriert</div><div class="empty-sub">Sobald Laura sich registriert, erscheint sie hier.</div></div>`}</div>`;
+  var profiles=S.allProfiles;
+  return '<div class="page-header"><div><div class="page-title">Freundinnen</div><div class="page-subtitle">Registrierte Nutzerinnen</div></div></div>'
+    +'<div class="content">'+(profiles.length?profiles.map(function(p){return '<div class="card" style="text-align:center;padding:32px"><div style="width:56px;height:56px;border-radius:50%;background:var(--accent);color:#e8f0ec;display:flex;align-items:center;justify-content:center;font-size:22px;font-family:var(--serif);margin:0 auto 14px">'+(p.display_name||'?')[0].toUpperCase()+'</div><div style="font-family:var(--serif);font-size:18px;margin-bottom:4px">'+(p.display_name||p.email)+'</div><div style="font-size:13px;color:var(--text3)">'+p.email+'</div></div>';}).join(''):'<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">Noch niemand registriert</div><div class="empty-sub">Sobald Laura sich registriert, erscheint sie hier.</div></div>')+'</div>';
 }
 
 function viewMatrix(){
-  if(S.matrixLoading)return`<div class="page-header"><div><div class="page-title">Wissensmatrix</div></div></div><div class="content"><div class="card"><div class="analyzing"><div class="analyzing-spinner"></div><div class="analyzing-text">Analysiere deine Highlights...</div></div></div></div>`;
-  if(!S.matrix)return`<div class="page-header"><div><div class="page-title">Wissensmatrix</div></div></div><div class="content"><div class="card"><div class="empty"><div class="empty-icon">🧠</div><div class="empty-title">Noch keine Analyse</div><div class="empty-sub">Die KI analysiert deine Highlights und erstellt deine persönliche Wissensmatrix.</div><button class="btn btn-primary" onclick="analyze()" ${totalHL()<2?'disabled':''}>Analyse starten</button></div></div></div>`;
-  const m=S.matrix;
-  const bars=m.matrix.map(t=>`<div class="matrix-bar-row"><div class="matrix-bar-header"><span class="matrix-bar-label">${t.thema}</span><span class="matrix-bar-pct">${t.prozent}%</span></div><div class="matrix-bar-track"><div class="matrix-bar-fill" style="width:${t.prozent}%"></div></div><div style="font-size:12px;color:var(--text3);margin-top:3px">${t.beschreibung}</div></div>`).join('');
-  const bsp=m.blindSpots.map(b=>`<div class="blind-spot-pair"><span style="color:var(--accent);font-weight:500">viel ${b.vorhanden}</span><span style="color:var(--text3)">→</span><span style="color:var(--text2)">wenig ${b.fehlend}</span></div>`).join('');
-  const muster=m.dominanteMuster.map(p=>`<span class="tag" style="margin-right:6px;margin-bottom:6px">${p}</span>`).join('');
-  return`<div class="page-header"><div><div class="page-title">Wissensmatrix</div><div class="page-subtitle">${totalHL()} Highlights · ${S.books.length} Bücher</div></div><button class="btn btn-secondary btn-sm" onclick="analyze()">Neu analysieren</button></div>
-  <div class="content">
-    <div class="grid-2" style="margin-bottom:16px">
-      <div class="card"><div class="section-header"><div class="section-title">Themenverteilung</div></div>${bars}</div>
-      <div>
-        <div class="card" style="margin-bottom:14px"><div class="section-title" style="margin-bottom:10px">Kerninsight</div><div class="insight-card" style="margin-bottom:0"><div class="insight-text" style="font-family:var(--serif);font-style:italic;font-size:15px">"${m.kerninsight}"</div></div></div>
-        <div class="card"><div class="section-title" style="margin-bottom:10px">Muster</div><div style="display:flex;flex-wrap:wrap">${muster}</div></div>
-      </div>
-    </div>
-    <div class="grid-2">
-      <div class="card"><div class="section-header"><div class="section-title">Blinde Flecken</div></div>${bsp}</div>
-      <div class="card"><div class="section-title" style="margin-bottom:10px">Entwicklungsbrücke</div><div class="insight-card"><div class="insight-label">Fehlendes Puzzlestück</div><div class="insight-text">${m.puzzleStueck}</div></div><div style="margin-top:12px"><div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:5px">Empfehlung</div><div style="font-size:14px;font-family:var(--serif);font-style:italic;color:var(--accent)">→ ${m.naechstesBuch}</div></div></div>
-    </div>
-  </div>`;
+  if(S.matrixLoading)return '<div class="page-header"><div><div class="page-title">Wissensmatrix</div></div></div><div class="content"><div class="card"><div class="analyzing"><div class="analyzing-spinner"></div><div class="analyzing-text">Analysiere Highlights und Fotos...</div></div></div></div>';
+  if(!S.matrix)return '<div class="page-header"><div><div class="page-title">Wissensmatrix</div></div></div><div class="content"><div class="card"><div class="empty"><div class="empty-icon">🧠</div><div class="empty-title">Noch keine Analyse</div><div class="empty-sub">Die KI analysiert deine Highlights — inklusive Foto-Highlights.</div><button class="btn btn-primary" onclick="analyze()" '+(totalHL()<2?'disabled':'')+'>Analyse starten</button></div></div></div>';
+  var m=S.matrix;
+  var bars=m.matrix.map(function(t){return '<div class="matrix-bar-row"><div class="matrix-bar-header"><span class="matrix-bar-label">'+t.thema+'</span><span class="matrix-bar-pct">'+t.prozent+'%</span></div><div class="matrix-bar-track"><div class="matrix-bar-fill" style="width:'+t.prozent+'%"></div></div><div style="font-size:12px;color:var(--text3);margin-top:3px">'+t.beschreibung+'</div></div>';}).join('');
+  var bsp=m.blindSpots.map(function(bs){return '<div class="blind-spot-pair"><span style="color:var(--accent);font-weight:500">viel '+bs.vorhanden+'</span><span style="color:var(--text3)">→</span><span style="color:var(--text2)">wenig '+bs.fehlend+'</span></div>';}).join('');
+  var muster=m.dominanteMuster.map(function(p){return '<span class="tag" style="margin-right:6px;margin-bottom:6px">'+p+'</span>';}).join('');
+  return '<div class="page-header"><div><div class="page-title">Wissensmatrix</div><div class="page-subtitle">'+totalHL()+' Highlights · '+S.books.length+' Bücher</div></div><button class="btn btn-secondary btn-sm" onclick="analyze()">Neu analysieren</button></div>'
+    +'<div class="content">'
+    +'<div class="grid-2" style="margin-bottom:16px">'
+    +'<div class="card"><div class="section-header"><div class="section-title">Themenverteilung</div></div>'+bars+'</div>'
+    +'<div>'
+    +'<div class="card" style="margin-bottom:14px"><div class="section-title" style="margin-bottom:10px">Kerninsight</div><div class="insight-card" style="margin-bottom:0"><div class="insight-text" style="font-family:var(--serif);font-style:italic;font-size:15px">"'+m.kerninsight+'"</div></div></div>'
+    +'<div class="card"><div class="section-title" style="margin-bottom:10px">Muster</div><div style="display:flex;flex-wrap:wrap">'+muster+'</div></div>'
+    +'</div></div>'
+    +'<div class="grid-2">'
+    +'<div class="card"><div class="section-header"><div class="section-title">Blinde Flecken</div></div>'+bsp+'</div>'
+    +'<div class="card"><div class="section-title" style="margin-bottom:10px">Entwicklungsbrücke</div><div class="insight-card"><div class="insight-label">Fehlendes Puzzlestück</div><div class="insight-text">'+m.puzzleStueck+'</div></div><div style="margin-top:12px"><div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:5px">Empfehlung</div><div style="font-size:14px;font-family:var(--serif);font-style:italic;color:var(--accent)">→ '+m.naechstesBuch+'</div></div></div>'
+    +'</div></div>';
 }
 
-// MODALS
 function colorSwatches(selected,fn){
-  return FOLDER_COLORS.map(c=>`<div class="color-swatch ${selected===c?'selected':''}" style="background:${c}" onclick="${fn}('${c}')"></div>`).join('');
+  return FOLDER_COLORS.map(function(c){return '<div class="color-swatch '+(selected===c?'selected':'')+'" style="background:'+c+'" onclick="'+fn+'(\''+c+'\')"></div>';}).join('');
 }
 
 function modalAddFolder(){
-  return`<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">
-    <div class="modal-header"><div class="modal-title">Ordner erstellen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>
-    <div class="modal-body">
-      <div class="form-group"><label>Name</label><input type="text" id="folder-name" placeholder="z.B. Psychologie, Strategie..." autofocus/></div>
-      <div class="form-group"><label>Farbe</label><div class="color-picker">${colorSwatches(S.selectedColor,'pickColor')}</div></div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-        <button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>
-        <button class="btn btn-primary" onclick="submitAddFolder()">Erstellen</button>
-      </div>
-    </div>
-  </div></div>`;
+  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">'
+    +'<div class="modal-header"><div class="modal-title">Ordner erstellen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="form-group"><label>Name</label><input type="text" id="folder-name" placeholder="z.B. Psychologie, Strategie..." autofocus/></div>'
+    +'<div class="form-group"><label>Farbe</label><div class="color-picker">'+colorSwatches(S.selectedColor,'pickColor')+'</div></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
+    +'<button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>'
+    +'<button class="btn btn-primary" onclick="submitAddFolder()">Erstellen</button>'
+    +'</div></div></div></div>';
 }
 
 function modalAssignFolder(bookId){
-  const book=S.books.find(b=>b.id===bookId);
-  const opts=S.folders.map(f=>`<button class="btn btn-secondary" style="width:100%;justify-content:flex-start;margin-bottom:8px;gap:10px" onclick="assignToFolder('${bookId}','${f.id}')"><div style="width:10px;height:10px;border-radius:50%;background:${f.color}"></div>${f.name} (${folderBooks(f.id).length})</button>`).join('');
-  return`<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">
-    <div class="modal-header"><div class="modal-title">Ordner zuweisen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>
-    <div class="modal-body">
-      <div style="font-size:13px;color:var(--text3);margin-bottom:14px;font-style:italic">${book?.title}</div>
-      ${S.folders.length?opts:`<div style="font-size:14px;color:var(--text3);text-align:center;padding:16px">Noch keine Ordner. <span style="color:var(--accent2);cursor:pointer" onclick="set({modal:{type:'addFolder'}})">Ordner erstellen →</span></div>`}
-      ${book?.folder_id?`<button class="btn btn-danger" style="width:100%;justify-content:center;margin-top:4px" onclick="assignToFolder('${bookId}',null)">Aus Ordner entfernen</button>`:''}
-    </div>
-  </div></div>`;
+  var book=S.books.find(function(b){return b.id===bookId;});
+  var opts=S.folders.map(function(f){return '<button class="btn btn-secondary" style="width:100%;justify-content:flex-start;margin-bottom:8px;gap:10px" onclick="assignToFolder(\''+bookId+'\',\''+f.id+'\')">'+'<div style="width:10px;height:10px;border-radius:50%;background:'+f.color+'"></div>'+f.name+' ('+folderBooks(f.id).length+')</button>';}).join('');
+  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">'
+    +'<div class="modal-header"><div class="modal-title">Ordner zuweisen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>'
+    +'<div class="modal-body">'
+    +'<div style="font-size:13px;color:var(--text3);margin-bottom:14px;font-style:italic">'+(book?book.title:'')+'</div>'
+    +(S.folders.length?opts:'<div style="font-size:14px;color:var(--text3);text-align:center;padding:16px">Noch keine Ordner.</div>')
+    +(book&&book.folder_id?'<button class="btn btn-danger" style="width:100%;justify-content:center;margin-top:4px" onclick="assignToFolder(\''+bookId+'\',null)">Aus Ordner entfernen</button>':'')
+    +'</div></div></div>';
 }
 
 function modalAddBook(){
-  const folderId=S.modal?.folderId||null;
-  return`<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">
-    <div class="modal-header"><div class="modal-title">Buch hinzufügen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>
-    <div class="modal-body">
-      <div class="form-group"><label>Titel</label><input type="text" id="nb-title" placeholder="Buchtitel..." autofocus/></div>
-      <div class="form-group"><label>Autor:in</label><input type="text" id="nb-author" placeholder="Name..."/></div>
-      <div class="form-group"><label>Status</label>
-        <select id="nb-status"><option value="reading">Lese ich gerade</option><option value="want">Möchte ich lesen</option><option value="done">Gelesen</option></select>
-      </div>
-      ${S.folders.length&&!folderId?`<div class="form-group"><label>Ordner (optional)</label>
-        <select id="nb-folder"><option value="">Kein Ordner</option>${S.folders.map(f=>`<option value="${f.id}">${f.name}</option>`).join('')}</select>
-      </div>`:''}
-      <div class="form-group"><label>Bewertung</label>
-        <div style="display:flex;gap:8px">${[1,2,3,4,5].map(n=>`<button id="star-${n}" class="btn btn-secondary btn-sm" onclick="pickStar(${n})" style="font-size:18px;padding:6px 10px">☆</button>`).join('')}</div>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-        <button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>
-        <button class="btn btn-primary" onclick="submitAddBook('${folderId||''}')">Hinzufügen</button>
-      </div>
-    </div>
-  </div></div>`;
+  var folderId=S.modal&&S.modal.folderId?S.modal.folderId:null;
+  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">'
+    +'<div class="modal-header"><div class="modal-title">Buch hinzufügen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="form-group"><label>Titel</label><input type="text" id="nb-title" placeholder="Buchtitel..." autofocus/></div>'
+    +'<div class="form-group"><label>Autor:in</label><input type="text" id="nb-author" placeholder="Name..."/></div>'
+    +'<div class="form-group"><label>Status</label><select id="nb-status"><option value="reading">Lese ich gerade</option><option value="want">Möchte ich lesen</option><option value="done">Gelesen</option></select></div>'
+    +(S.folders.length&&!folderId?'<div class="form-group"><label>Ordner (optional)</label><select id="nb-folder"><option value="">Kein Ordner</option>'+S.folders.map(function(f){return '<option value="'+f.id+'">'+f.name+'</option>';}).join('')+'</select></div>':'')
+    +'<div class="form-group"><label>Bewertung</label><div style="display:flex;gap:8px">'+[1,2,3,4,5].map(function(n){return '<button id="star-'+n+'" class="btn btn-secondary btn-sm" onclick="pickStar('+n+')" style="font-size:18px;padding:6px 10px">☆</button>';}).join('')+'</div></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
+    +'<button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>'
+    +'<button class="btn btn-primary" onclick="submitAddBook(\''+(folderId||'')+'\')">Hinzufügen</button>'
+    +'</div></div></div></div>';
 }
 
 function modalEditBook(b){
-  return`<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">
-    <div class="modal-header"><div class="modal-title">Buch bearbeiten</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>
-    <div class="modal-body">
-      <div class="form-group"><label>Status</label>
-        <select id="eb-status"><option value="reading" ${b.status==='reading'?'selected':''}>Lese ich gerade</option><option value="want" ${b.status==='want'?'selected':''}>Möchte ich lesen</option><option value="done" ${b.status==='done'?'selected':''}>Gelesen</option></select>
-      </div>
-      <div class="form-group"><label>Bewertung</label>
-        <div style="display:flex;gap:8px">${[1,2,3,4,5].map(n=>`<button id="star-${n}" class="btn btn-secondary btn-sm" onclick="pickStar(${n})" style="font-size:18px;padding:6px 10px">${n<=(b.rating||0)?'★':'☆'}</button>`).join('')}</div>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-        <button class="btn btn-danger btn-sm" onclick="deleteBook('${b.id}')">Löschen</button>
-        <button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>
-        <button class="btn btn-primary" onclick="submitEditBook('${b.id}')">Speichern</button>
-      </div>
-    </div>
-  </div></div>`;
+  if(!b)return '';
+  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">'
+    +'<div class="modal-header"><div class="modal-title">Buch bearbeiten</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="form-group"><label>Status</label><select id="eb-status"><option value="reading" '+(b.status==='reading'?'selected':'')+'>Lese ich gerade</option><option value="want" '+(b.status==='want'?'selected':'')+'>Möchte ich lesen</option><option value="done" '+(b.status==='done'?'selected':'')+'>Gelesen</option></select></div>'
+    +'<div class="form-group"><label>Bewertung</label><div style="display:flex;gap:8px">'+[1,2,3,4,5].map(function(n){return '<button id="star-'+n+'" class="btn btn-secondary btn-sm" onclick="pickStar('+n+')" style="font-size:18px;padding:6px 10px">'+(n<=(b.rating||0)?'★':'☆')+'</button>';}).join('')+'</div></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
+    +'<button class="btn btn-danger btn-sm" onclick="deleteBook(\''+b.id+'\')">Löschen</button>'
+    +'<button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>'
+    +'<button class="btn btn-primary" onclick="submitEditBook(\''+b.id+'\')">Speichern</button>'
+    +'</div></div></div></div>';
 }
 
 function modalAddHighlight(bookId){
-  const b=S.books.find(x=>x.id===bookId);
-  return`<div class="modal-overlay" onclick="if(event.target===this)set({modal:null,photoTab:'text'})"><div class="modal">
-    <div class="modal-header"><div class="modal-title">Highlight hinzufügen</div><button class="btn-icon" onclick="set({modal:null,photoTab:'text'})">✕</button></div>
-    <div class="modal-body">
-      <div style="font-size:13px;color:var(--text3);margin-bottom:12px;font-style:italic">${b?.title}</div>
-      <div class="tabs">
-        <div class="tab ${S.photoTab==='text'?'active':''}" onclick="set({photoTab:'text'})">✍️ Text</div>
-        <div class="tab ${S.photoTab==='photo'?'active':''}" onclick="set({photoTab:'photo'})">📷 Foto</div>
-      </div>
-      ${S.photoTab==='text'?`<div class="form-group"><label>Markierte Stelle</label><textarea id="hl-text" placeholder="Text eingeben oder einfügen..."></textarea></div>`:`
-        <div class="photo-drop" onclick="document.getElementById('photo-input').click()">
-          <input type="file" id="photo-input" accept="image/*" onchange="handlePhoto(event,'${bookId}')">
-          <div id="photo-preview-area"><div style="font-size:32px;margin-bottom:8px">📸</div><div style="font-size:14px;color:var(--text2)">Foto oder Screenshot wählen</div><div style="font-size:12px;color:var(--text3);margin-top:4px">Kamera, Galerie oder Screenshot</div></div>
-        </div>
-        <div id="hl-text-extracted" style="display:none"><div class="form-group"><label>Extrahierter Text (bearbeitbar)</label><textarea id="hl-text" placeholder="Wird automatisch extrahiert..."></textarea></div></div>
-      `}
-      <div class="form-group"><label>Eigene Notiz (optional)</label><input type="text" id="hl-note" placeholder="Dein Gedanke dazu..."/></div>
-      <div class="form-group"><label>Seite (optional)</label><input type="text" id="hl-page" placeholder="z.B. 47" inputmode="numeric"/></div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-        <button class="btn btn-secondary" onclick="set({modal:null,photoTab:'text'})">Abbrechen</button>
-        <button class="btn btn-primary" id="hl-save-btn" onclick="submitHighlight('${bookId}')">Speichern</button>
-      </div>
-    </div>
-  </div></div>`;
+  var b=S.books.find(function(x){return x.id===bookId;});
+  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null,photoTab:\'text\'})"><div class="modal">'
+    +'<div class="modal-header"><div class="modal-title">Highlight hinzufügen</div><button class="btn-icon" onclick="set({modal:null,photoTab:\'text\'})">✕</button></div>'
+    +'<div class="modal-body">'
+    +'<div style="font-size:13px;color:var(--text3);margin-bottom:12px;font-style:italic">'+(b?b.title:'')+'</div>'
+    +'<div class="tabs">'
+    +'<div class="tab '+(S.photoTab==='text'?'active':'')+'" onclick="set({photoTab:\'text\'})">✍️ Text</div>'
+    +'<div class="tab '+(S.photoTab==='photo'?'active':'')+'" onclick="set({photoTab:\'photo\'})">📷 Foto</div>'
+    +'</div>'
+    +(S.photoTab==='text'
+      ?'<div class="form-group"><label>Markierte Stelle</label><textarea id="hl-text" placeholder="Text eingeben oder einfügen..."></textarea></div>'
+      :'<div class="photo-drop" onclick="document.getElementById(\'photo-input\').click()">'
+        +'<input type="file" id="photo-input" accept="image/*" onchange="handlePhoto(event,\''+bookId+'\')">'
+        +'<div id="photo-preview-area"><div style="font-size:32px;margin-bottom:8px">📸</div>'
+        +'<div style="font-size:14px;color:var(--text2)">Foto oder Screenshot wählen</div>'
+        +'<div style="font-size:12px;color:var(--text3);margin-top:4px">Wird direkt gespeichert und bei der Matrix-Analyse berücksichtigt</div>'
+        +'</div></div>'
+    )
+    +'<div class="form-group"><label>Eigene Notiz (optional)</label><input type="text" id="hl-note" placeholder="Dein Gedanke dazu..."/></div>'
+    +'<div class="form-group"><label>Seite (optional)</label><input type="text" id="hl-page" placeholder="z.B. 47" inputmode="numeric"/></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
+    +'<button class="btn btn-secondary" onclick="set({modal:null,photoTab:\'text\'})">Abbrechen</button>'
+    +'<button class="btn btn-primary" id="hl-save-btn" onclick="submitHighlight(\''+bookId+'\')">Speichern</button>'
+    +'</div></div></div></div>';
 }
 
 function modalShare(hlId){
-  const profiles=S.allProfiles;
-  return`<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">
-    <div class="modal-header"><div class="modal-title">Highlight teilen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>
-    <div class="modal-body">${profiles.length?profiles.map(p=>`<button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:8px" onclick="shareHighlight('${hlId}','${p.id}')">Teilen mit ${p.display_name||p.email}</button>`).join(''):`<div style="font-size:14px;color:var(--text3);text-align:center;padding:16px">Noch niemand registriert.</div>`}</div>
-  </div></div>`;
+  var profiles=S.allProfiles;
+  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">'
+    +'<div class="modal-header"><div class="modal-title">Highlight teilen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>'
+    +'<div class="modal-body">'+(profiles.length?profiles.map(function(p){return '<button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:8px" onclick="shareHighlight(\''+hlId+'\',\''+p.id+'\')">Teilen mit '+(p.display_name||p.email)+'</button>';}).join(''):'<div style="font-size:14px;color:var(--text3);text-align:center;padding:16px">Noch niemand registriert.</div>')+'</div>'
+    +'</div></div>';
 }
 
 function modalSettings(){
-  return`<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">
-    <div class="modal-header"><div class="modal-title">Einstellungen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>
-    <div class="modal-body">
-      <div class="form-group"><label>Anthropic API Key</label><input type="password" id="api-key-input" value="${S.anthropicKey}" placeholder="sk-ant-..." style="font-family:monospace;font-size:13px"/><div style="font-size:12px;color:var(--text3);margin-top:5px">Nur lokal gespeichert. Für Matrix & Foto-OCR. → <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2)">console.anthropic.com</a></div></div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-        <button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>
-        <button class="btn btn-primary" onclick="saveSettings()">Speichern</button>
-      </div>
-    </div>
-  </div></div>`;
+  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">'
+    +'<div class="modal-header"><div class="modal-title">Einstellungen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="form-group"><label>Anthropic API Key</label><input type="password" id="api-key-input" value="'+S.anthropicKey+'" placeholder="sk-ant-..." style="font-family:monospace;font-size:13px"/><div style="font-size:12px;color:var(--text3);margin-top:5px">Nur lokal gespeichert. Für Matrix-Analyse. → <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2)">console.anthropic.com</a></div></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
+    +'<button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>'
+    +'<button class="btn btn-primary" onclick="saveSettings()">Speichern</button>'
+    +'</div></div></div></div>';
 }
 
-// WINDOW ACTIONS
 window.signIn=signIn;window.signUp=signUp;window.signOut=signOut;
 window.set=set;window.analyze=analyze;
 window.deleteBook=deleteBook;window.deleteFolder=deleteFolder;
-window.deleteHighlight=deleteHighlight;
-window.shareHighlight=shareHighlight;window.markSeen=markSeen;
+window.deleteHighlight=deleteHighlight;window.shareHighlight=shareHighlight;window.markSeen=markSeen;
 window.assignToFolder=assignToFolder;
 
-window.pickColor=(c)=>set({selectedColor:c});
-window.pickStar=(n)=>{
+window.pickColor=function(c){S.selectedColor=c;render();};
+window.pickStar=function(n){
   S.selectedStars=n;
-  [1,2,3,4,5].forEach(i=>{const b=document.getElementById('star-'+i);if(b)b.textContent=i<=n?'★':'☆'});
+  for(var i=1;i<=5;i++){var b=document.getElementById('star-'+i);if(b)b.textContent=i<=n?'★':'☆';}
 };
-
-window.submitAddFolder=()=>{
-  const name=document.getElementById('folder-name')?.value?.trim();
-  if(!name){toast('Name eingeben','error');return}
-  addFolder(name,S.selectedColor);
-  set({selectedColor:FOLDER_COLORS[0]});
+window.submitAddFolder=function(){
+  var name=document.getElementById('folder-name').value.trim();
+  if(!name){toast('Name eingeben','error');return;}
+  addFolder(name,S.selectedColor);S.selectedColor=FOLDER_COLORS[0];
 };
-
-window.submitAddBook=(folderId)=>{
-  const t=document.getElementById('nb-title')?.value?.trim();
-  const a=document.getElementById('nb-author')?.value?.trim();
-  const s=document.getElementById('nb-status')?.value||'reading';
-  const f=folderId||document.getElementById('nb-folder')?.value||null;
-  if(!t||!a){toast('Titel und Autor angeben','error');return}
+window.submitAddBook=function(folderId){
+  var t=document.getElementById('nb-title').value.trim();
+  var a=document.getElementById('nb-author').value.trim();
+  var s=document.getElementById('nb-status').value||'reading';
+  var folderEl=document.getElementById('nb-folder');
+  var f=folderId||(folderEl?folderEl.value:'')||null;
+  if(!t||!a){toast('Titel und Autor angeben','error');return;}
   addBook(t,a,s,S.selectedStars,f||null);S.selectedStars=0;
 };
-
-window.submitEditBook=(id)=>{
-  const s=document.getElementById('eb-status')?.value;
+window.submitEditBook=function(id){
+  var s=document.getElementById('eb-status').value;
   updateBook(id,{status:s,rating:S.selectedStars});S.selectedStars=0;
 };
-
-window.submitHighlight=(bookId)=>{
-  const text=document.getElementById('hl-text')?.value?.trim();
-  const note=document.getElementById('hl-note')?.value?.trim();
-  const page=document.getElementById('hl-page')?.value?.trim();
-  const imagePath=S._pendingImagePath||null;
-  if(!text&&!imagePath){toast('Bitte Text eingeben oder Foto hochladen','error');return}
+window.submitHighlight=function(bookId){
+  var text=(document.getElementById('hl-text')||{value:''}).value.trim();
+  var note=(document.getElementById('hl-note')||{value:''}).value.trim();
+  var page=(document.getElementById('hl-page')||{value:''}).value.trim();
+  var imagePath=S._pendingImagePath||null;
+  if(!text&&!imagePath){toast('Bitte Text eingeben oder Foto hochladen','error');return;}
   addHighlight(bookId,text||'[Foto-Highlight]',note||null,page||null,imagePath);
-  S._pendingImagePath=null;
 };
-
-window.handlePhoto=async(event,bookId)=>{
-  const file=event.target.files[0];if(!file)return;
-  const objectUrl=URL.createObjectURL(file);
-  const preview=document.getElementById('photo-preview-area');
-  if(preview)preview.innerHTML=`<img src="${objectUrl}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">⏳ Foto wird hochgeladen...</div>`;
-  const btn=document.getElementById('hl-save-btn');if(btn)btn.disabled=true;
-  const path=await uploadImage(file,S.user.id);
-  if(path){S._pendingImagePath=path;if(preview)preview.innerHTML=`<img src="${objectUrl}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">✓ Foto gespeichert</div>`;}
-  else{if(preview)preview.innerHTML=`<img src="${objectUrl}" class="photo-preview"/><div style="font-size:13px;color:#c0392b">Upload fehlgeschlagen</div>`;}
+window.handlePhoto=async function(event,bookId){
+  var file=event.target.files[0];if(!file)return;
+  var objectUrl=URL.createObjectURL(file);
+  var preview=document.getElementById('photo-preview-area');
+  if(preview)preview.innerHTML='<img src="'+objectUrl+'" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">⏳ Foto wird hochgeladen...</div>';
+  var btn=document.getElementById('hl-save-btn');if(btn)btn.disabled=true;
+  var path=await uploadImage(file,S.user.id);
+  if(path){
+    S._pendingImagePath=path;
+    if(preview)preview.innerHTML='<img src="'+objectUrl+'" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">✓ Foto gespeichert — wird bei der Matrix-Analyse berücksichtigt</div>';
+  }else{
+    if(preview)preview.innerHTML='<img src="'+objectUrl+'" class="photo-preview"/><div style="font-size:13px;color:#c0392b">Upload fehlgeschlagen</div>';
+  }
   if(btn)btn.disabled=false;
-}
 };
-
-window.saveSettings=()=>{
-  const key=document.getElementById('api-key-input')?.value?.trim()||'';
-  S.anthropicKey=key;localStorage.setItem(ANT_KEY_STORE,key);
-  set({modal:null});toast('Gespeichert ✓');
+window.saveSettings=function(){
+  var key=(document.getElementById('api-key-input').value||'').trim();
+  S.anthropicKey=key;localStorage.setItem(ANT_KEY,key);
+  set({modal:null});toast('Gespeichert');
 };
-
-window.selectBook=async(id)=>{
+window.selectBook=async function(id){
   set({view:'book',selectedBook:id});
   if(!S.highlights[id])await loadHighlights(id);
   render();
 };
+window.openFolder=function(id){set({view:'folder',selectedFolder:id,selectedBook:null});};
+window.openInbox=async function(){set({view:'inbox'});await loadInbox();render();};
+window.openShare=function(hlId){if(!S.allProfiles.length)loadProfiles();set({modal:{type:'share',hlId:hlId}});};
 
-window.openFolder=(id)=>set({view:'folder',selectedFolder:id,selectedBook:null});
-window.openInbox=async()=>{set({view:'inbox'});await loadInbox();render()};
-window.openShare=(hlId)=>{if(!S.allProfiles.length)loadProfiles();set({modal:{type:'share',hlId}})};
-
-// INIT
-(async()=>{
-  const {data:{session}}=await sb.auth.getSession();
-  if(session){
-    S.user=session.user;
-    const {data:profile}=await sb.from('profiles').select('*').eq('id',session.user.id).single();
-    S.profile=profile;
+(async function(){
+  var sess=await sb.auth.getSession();
+  if(sess.data.session){
+    S.user=sess.data.session.user;
+    var pr=await sb.from('profiles').select('*').eq('id',S.user.id).single();
+    S.profile=pr.data;
     await loadAll();await loadInbox();await loadProfiles();
   }
   render();
-  sb.auth.onAuthStateChange(async(event,session)=>{
+  sb.auth.onAuthStateChange(async function(event,session){
     if(session){
       S.user=session.user;
-      const {data:profile}=await sb.from('profiles').select('*').eq('id',session.user.id).single();
-      S.profile=profile;
+      var pr=await sb.from('profiles').select('*').eq('id',session.user.id).single();
+      S.profile=pr.data;
       await loadAll();await loadInbox();await loadProfiles();
       set({view:'library'});
     }else{
@@ -809,7 +759,7 @@ window.openShare=(hlId)=>{if(!S.allProfiles.length)loadProfiles();set({modal:{ty
   });
 })();
 
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});
 </script>
 </body>
 </html>
