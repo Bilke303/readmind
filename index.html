@@ -745,22 +745,32 @@ window.submitHighlight=(bookId)=>{
 window.handlePhoto=async(event,bookId)=>{
   const file=event.target.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=async(e)=>{
-    const base64=e.target.result.split(',')[1];
+  const img=new Image();
+  const objectUrl=URL.createObjectURL(file);
+  img.onload=async()=>{
+    URL.revokeObjectURL(objectUrl);
+    const canvas=document.createElement('canvas');
+    let w=img.width,h=img.height;
+    const maxSize=1200;
+    if(w>maxSize||h>maxSize){if(w>h){h=Math.round(h*maxSize/w);w=maxSize;}else{w=Math.round(w*maxSize/h);h=maxSize;}}
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    const compressed=canvas.toDataURL('image/jpeg',0.75);
+    const base64=compressed.split(',')[1];
     const preview=document.getElementById('photo-preview-area');
-    if(preview)preview.innerHTML=`<img src="${e.target.result}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">⏳ Text wird extrahiert...</div>`;
+    if(preview)preview.innerHTML=`<img src="${compressed}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">⏳ Text wird extrahiert...</div>`;
     const btn=document.getElementById('hl-save-btn');if(btn)btn.disabled=true;
-    const text=await extractText(base64,file.type);
+    const text=await extractText(base64,'image/jpeg');
     if(text){
       const ex=document.getElementById('hl-text-extracted');if(ex)ex.style.display='block';
       const ta=document.getElementById('hl-text');if(ta)ta.value=text;
-      if(preview)preview.innerHTML=`<img src="${e.target.result}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">✓ Text extrahiert</div>`;
+      if(preview)preview.innerHTML=`<img src="${compressed}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">✓ Text extrahiert</div>`;
     }else{
-      if(preview)preview.innerHTML=`<img src="${e.target.result}" class="photo-preview"/><div style="font-size:13px;color:#c0392b">Extraktion fehlgeschlagen — bitte manuell eingeben</div>`;
+      if(preview)preview.innerHTML=`<img src="${compressed}" class="photo-preview"/><div style="font-size:13px;color:#c0392b">Extraktion fehlgeschlagen — bitte manuell eingeben</div>`;
     }
     if(btn)btn.disabled=false;
   };
-  reader.readAsDataURL(file);
+  img.src=objectUrl;
 };
 
 window.saveSettings=()=>{
