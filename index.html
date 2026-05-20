@@ -3,93 +3,382 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#2D4A3E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Readmind">
-<meta name="description" content="Deine persönliche Wissensmatrix">
+<meta name="theme-color" content="#2D4A3E">
 <link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <title>Readmind</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F4EF;--bg2:#EDEAE3;--bg3:#fff;
+  --text:#1a1814;--text2:#6b6760;--text3:#9e9b96;
+  --accent:#2D4A3E;--accent2:#4a7c66;--accent-light:#e8f0ec;
+  --border:rgba(26,24,20,0.12);--border2:rgba(26,24,20,0.06);
+  --serif:'Playfair Display',Georgia,serif;--sans:'DM Sans',system-ui,sans-serif;
+  --radius:12px;--radius-sm:8px;--shadow:0 2px 16px rgba(26,24,20,0.08);
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.app{display:flex;height:100vh;height:100dvh}
 
-:root {
-  --bg: #F7F4EF;
-  --bg2: #EDEAE3;
-  --bg3: #fff;
-  --text: #1a1814;
-  --text2: #6b6760;
-  --text3: #9e9b96;
-  --accent: #2D4A3E;
-  --accent2: #4a7c66;
-  --accent-light: #e8f0ec;
-  --border: rgba(26,24,20,0.12);
-  --border2: rgba(26,24,20,0.06);
-  --serif: 'Playfair Display', Georgia, serif;
-  --sans: 'DM Sans', system-ui, sans-serif;
-  --radius: 12px;
-  --radius-sm: 8px;
-  --shadow: 0 2px 16px rgba(26,24,20,0.08);
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+/* SIDEBAR - desktop only */
+.sidebar{width:220px;background:var(--accent);padding:28px 0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-logo{font-family:var(--serif);font-size:22px;color:#e8f0ec;padding:0 24px 28px;border-bottom:1px solid rgba(232,240,236,0.15);margin-bottom:16px}
+.sidebar-logo span{color:rgba(232,240,236,0.5);font-style:italic;font-size:13px;display:block;font-family:var(--sans);margin-top:2px;font-weight:300}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 24px;color:rgba(232,240,236,0.6);cursor:pointer;font-size:14px;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:#e8f0ec;background:rgba(232,240,236,0.08)}
+.nav-item.active{color:#e8f0ec;background:rgba(232,240,236,0.12);border-left-color:#e8f0ec;font-weight:500}
+.nav-section{font-size:10px;font-weight:500;letter-spacing:1.2px;text-transform:uppercase;color:rgba(232,240,236,0.3);padding:20px 24px 6px}
+.book-nav-item{display:flex;align-items:center;gap:8px;padding:7px 24px 7px 36px;color:rgba(232,240,236,0.5);cursor:pointer;font-size:13px;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.book-nav-item:hover{color:rgba(232,240,236,0.85)}
+.book-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto}
+
+/* BOTTOM NAV - mobile only */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg3);border-top:1px solid var(--border);z-index:50}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 calc(8px + env(safe-area-inset-bottom));cursor:pointer;font-size:11px;color:var(--text3);font-weight:500;transition:color .15s}
+.bottom-nav-item.active{color:var(--accent)}
+.bottom-nav-icon{font-size:20px}
+.fab{display:none;position:fixed;bottom:calc(76px + env(safe-area-inset-bottom));right:20px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#e8f0ec;border:none;font-size:26px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(45,74,62,0.35);z-index:40}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .bottom-nav{display:flex}
+  .fab{display:flex}
+  .main{padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+  .page-header{padding:calc(16px + env(safe-area-inset-top)) 16px 14px!important}
+  .content{padding:16px!important}
+  .stat-grid{grid-template-columns:1fr 1fr!important}
+  .grid-2{grid-template-columns:1fr!important}
+  .grid-auto{grid-template-columns:1fr!important}
+  .modal{border-radius:var(--radius) var(--radius) 0 0;position:fixed;bottom:0;left:0;right:0;max-height:88vh;max-width:100%}
+  .modal-overlay{align-items:flex-end;padding:0}
 }
 
-html { height: 100%; }
-body {
-  font-family: var(--sans);
-  background: var(--bg);
-  color: var(--text);
-  height: 100%;
-  font-size: 15px;
-  line-height: 1.6;
-  overflow: hidden;
-  -webkit-font-smoothing: antialiased;
+/* HEADER */
+.page-header{padding:28px 36px 20px;border-bottom:1px solid var(--border2);background:var(--bg);display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;z-index:10}
+.page-title{font-family:var(--serif);font-size:24px;font-weight:400}
+.page-subtitle{font-size:13px;color:var(--text3);margin-top:3px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;border:none}
+.btn-primary{background:var(--accent);color:#e8f0ec}
+.btn-primary:hover{background:#1e3329}
+.btn-primary:disabled{opacity:0.5;cursor:default}
+.btn-secondary{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--bg2)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-icon{padding:8px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border);color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;font-size:16px;transition:all .15s}
+
+/* CONTENT */
+.content{padding:24px 36px}
+
+/* CARDS */
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px}
+
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px 16px}
+.stat-label{font-size:11px;font-weight:500;letter-spacing:.8px;text-transform:uppercase;color:var(--text3)}
+.stat-value{font-family:var(--serif);font-size:26px;font-weight:400;color:var(--accent);margin-top:4px}
+
+/* BOOK CARD */
+.book-card{cursor:pointer;transition:all .2s}
+.book-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(26,24,20,.1);border-color:var(--accent2)}
+.book-spine{height:6px;border-radius:var(--radius) var(--radius) 0 0;margin:-22px -22px 16px}
+.book-title{font-family:var(--serif);font-size:16px;font-weight:500;margin-bottom:4px;line-height:1.4}
+.book-author{font-size:13px;color:var(--text3);margin-bottom:10px}
+.book-meta{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text3);flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--accent-light);color:var(--accent)}
+
+/* HIGHLIGHTS */
+.highlight-item{padding:14px 0;border-bottom:1px solid var(--border2)}
+.highlight-item:last-child{border-bottom:none}
+.highlight-text{font-family:var(--serif);font-size:15px;line-height:1.7;font-style:italic;border-left:3px solid var(--accent2);padding-left:14px;margin-bottom:8px}
+.highlight-meta{font-size:12px;color:var(--text3);display:flex;gap:12px;align-items:center}
+
+/* MATRIX */
+.matrix-bar-row{margin-bottom:14px}
+.matrix-bar-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.matrix-bar-label{font-size:14px;font-weight:500}
+.matrix-bar-pct{font-size:13px;color:var(--text3);font-family:var(--serif)}
+.matrix-bar-track{height:6px;background:var(--bg2);border-radius:3px;overflow:hidden}
+.matrix-bar-fill{height:100%;background:var(--accent2);border-radius:3px;transition:width 1.2s ease}
+
+/* BLIND SPOTS */
+.insight-card{background:var(--accent-light);border:1px solid rgba(45,74,62,.15);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px}
+.insight-label{font-size:11px;font-weight:500;letter-spacing:.8px;text-transform:uppercase;color:var(--accent2);margin-bottom:8px}
+.insight-text{font-size:14px;line-height:1.65}
+.blind-spot-pair{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:14px;flex-wrap:wrap}
+.blind-spot-have{color:var(--accent);font-weight:500}
+.blind-spot-arrow{color:var(--text3)}
+.blind-spot-missing{color:var(--text2)}
+
+/* FORM */
+.form-group{margin-bottom:16px}
+label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:6px}
+input[type=text],input[type=password],textarea{width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:15px;color:var(--text);transition:border-color .15s;outline:none;-webkit-appearance:none}
+input[type=text]:focus,input[type=password]:focus,textarea:focus{border-color:var(--accent2)}
+textarea{resize:vertical;min-height:120px;line-height:1.6}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(26,24,20,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:var(--bg3);border-radius:var(--radius);width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(26,24,20,.25)}
+.modal-header{padding:22px 22px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-title{font-family:var(--serif);font-size:20px;font-weight:400}
+.modal-body{padding:0 22px 28px}
+
+/* MISC */
+.section-title{font-family:var(--serif);font-size:18px;font-weight:400}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.divider{border:none;border-top:1px solid var(--border2);margin:18px 0}
+.empty{text-align:center;padding:48px 20px}
+.empty-icon{font-size:40px;margin-bottom:14px}
+.empty-title{font-family:var(--serif);font-size:20px;font-weight:400;margin-bottom:8px}
+.empty-sub{font-size:14px;color:var(--text3);max-width:280px;margin:0 auto 20px;line-height:1.6}
+.analyzing{text-align:center;padding:48px 20px}
+.analyzing-spinner{width:34px;height:34px;border:2px solid var(--bg2);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.analyzing-text{font-family:var(--serif);font-style:italic;color:var(--text2);font-size:16px}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<script>
+const COLORS=['#2D4A3E','#4a7c66','#8B7355','#6B5B7B','#4A6B8A','#7A5C4A','#3D6B5A'];
+
+const DEF={view:'library',selectedBook:null,books:[],matrix:null,matrixLoading:false,showAddBook:false,showAddHighlight:false,apiKey:'',showSettings:false,friendName:'Laura'};
+
+let S=(()=>{try{const s=JSON.parse(localStorage.getItem('rm3')||'null');return s?{...DEF,...s,matrixLoading:false}:DEF}catch{return DEF}})();
+
+function save(){localStorage.setItem('rm3',JSON.stringify({...S,matrixLoading:false,showAddBook:false,showAddHighlight:false,showSettings:false}))}
+function set(p){S={...S,...p};render();save()}
+function totalH(){return S.books.reduce((s,b)=>s+b.highlights.length,0)}
+function getB(id){return S.books.find(b=>b.id===id)}
+
+window.set=set;
+window.selectBook=(id)=>set({view:'book',selectedBook:id});
+
+window.addBook=()=>{
+  const t=document.getElementById('nbt')?.value?.trim();
+  const a=document.getElementById('nba')?.value?.trim();
+  if(!t||!a){toast('Bitte Titel und Autor angeben.');return}
+  const color=COLORS[S.books.length%COLORS.length];
+  set({books:[...S.books,{id:Date.now(),title:t,author:a,color,addedAt:new Date().toISOString().split('T')[0],highlights:[]}],showAddBook:false});
+  toast('Buch hinzugefügt ✓');
+};
+
+window.addHighlight=()=>{
+  const t=document.getElementById('nht')?.value?.trim();
+  const p=document.getElementById('nhp')?.value?.trim();
+  if(!t){toast('Bitte Text eingeben.');return}
+  const books=S.books.map(b=>b.id!==S.selectedBook?b:{...b,highlights:[...b.highlights,{id:Date.now(),text:t,page:p,addedAt:new Date().toISOString().split('T')[0]}]});
+  set({books,showAddHighlight:false,matrix:null});
+  toast('Highlight gespeichert ✓');
+};
+
+window.delHighlight=(bid,hid)=>{
+  if(!confirm('Highlight löschen?'))return;
+  set({books:S.books.map(b=>b.id!==bid?b:{...b,highlights:b.highlights.filter(h=>h.id!==hid)}),matrix:null});
+};
+
+window.delBook=(bid)=>{
+  if(!confirm('Buch und alle Highlights löschen?'))return;
+  set({books:S.books.filter(b=>b.id!==bid),view:'library',selectedBook:null,matrix:null});
+  toast('Buch entfernt');
+};
+
+window.saveSettings=()=>{
+  const k=document.getElementById('aki')?.value?.trim()||'';
+  const f=document.getElementById('fni')?.value?.trim()||'Laura';
+  set({apiKey:k,friendName:f,showSettings:false});
+  toast('Gespeichert ✓');
+};
+
+window.analyze=async()=>{
+  if(!S.apiKey){toast('API Key fehlt — bitte in Einstellungen eintragen.');set({showSettings:true});return}
+  if(totalH()<2){toast('Mindestens 2 Highlights erforderlich.');return}
+  set({matrixLoading:true,view:'matrix'});
+  const hl=S.books.flatMap(b=>b.highlights.map(h=>`[${b.title} von ${b.author}] "${h.text}"`)).join('\n\n');
+  const prompt=`Du analysierst die persönliche Lese-Bibliothek einer Nutzerin. Highlights:\n\n${hl}\n\nAntworte NUR als reines JSON ohne Markdown:\n{"matrix":[{"thema":"Name","prozent":25,"beschreibung":"Kurz"}],"dominanteMuster":["M1","M2","M3"],"blindSpots":[{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"}],"puzzleStueck":"Ein Satz.","naechstesBuch":"Titel — Autor","kerninsight":"Ein präziser Satz."}\n\n4-6 matrix-Einträge, Summe prozent=100.`;
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    const m=JSON.parse((d.content?.[0]?.text||'').replace(/```json|```/g,'').trim());
+    set({matrix:m,matrixLoading:false});
+  }catch(e){
+    set({matrixLoading:false});
+    toast('Fehler: '+(e.message||'API Key prüfen'));
+  }
+};
+
+function toast(msg){
+  document.getElementById('toast')?.remove();
+  const el=document.createElement('div');
+  el.id='toast';
+  el.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1a1814;color:#fff;padding:10px 20px;border-radius:100px;font-size:13px;z-index:9999;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+  el.textContent=msg;document.body.appendChild(el);
+  setTimeout(()=>el.remove(),2500);
 }
 
-/* ── LAYOUT ── */
-.app { display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
+// ── RENDER FUNCTIONS ──
 
-/* ── DESKTOP SIDEBAR ── */
-.sidebar {
-  width: 220px;
-  background: var(--accent);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  overflow-y: auto;
-  padding-top: calc(20px + var(--safe-top));
-  padding-bottom: calc(16px + var(--safe-bottom));
+function sidebar(){
+  const books=S.books.map(b=>`<div class="book-nav-item" onclick="selectBook(${b.id})"><div class="book-dot" style="background:${b.color}"></div><span>${b.title}</span></div>`).join('');
+  return`<div class="sidebar">
+    <div class="sidebar-logo">readmind<span>Deine Wissensmatrix</span></div>
+    <nav>
+      <div class="nav-item ${S.view==='library'&&!S.selectedBook?'active':''}" onclick="set({view:'library',selectedBook:null})">📚 Bibliothek</div>
+      <div class="nav-item ${S.view==='matrix'?'active':''}" onclick="set({view:'matrix'})">🧠 Matrix & Analyse</div>
+      <div class="nav-item ${S.view==='friend'?'active':''}" onclick="set({view:'friend'})">👤 ${S.friendName}s Profil</div>
+      ${S.books.length?`<div class="nav-section">Bücher</div>${books}`:''}
+    </nav>
+    <div style="margin-top:auto;padding:20px 24px 0">
+      <div class="nav-item" onclick="set({showSettings:true})">⚙️ Einstellungen</div>
+    </div>
+  </div>`;
 }
-.sidebar-logo {
-  font-family: var(--serif);
-  font-size: 22px;
-  color: #e8f0ec;
-  padding: 0 24px 24px;
-  border-bottom: 1px solid rgba(232,240,236,0.15);
-  margin-bottom: 12px;
+
+function bottomNav(){
+  const items=[{i:'📚',l:'Bücher',v:'library'},{i:'🧠',l:'Matrix',v:'matrix'},{i:'👤',l:S.friendName,v:'friend'},{i:'⚙️',l:'Settings',v:'settings'}];
+  return`<div class="bottom-nav">${items.map(x=>`<div class="bottom-nav-item ${S.view===x.v?'active':''}" onclick="${x.v==='settings'?'set({showSettings:true})':'set({view:\''+x.v+'\',selectedBook:null})'}"><span class="bottom-nav-icon">${x.i}</span><span>${x.l}</span></div>`).join('')}</div>`;
 }
-.sidebar-logo span {
-  color: rgba(232,240,236,0.45);
-  font-style: italic;
-  font-size: 12px;
-  display: block;
-  font-family: var(--sans);
-  margin-top: 3px;
-  font-weight: 300;
+
+function viewLibrary(){
+  const cards=S.books.map(b=>`<div class="card book-card" onclick="selectBook(${b.id})"><div class="book-spine" style="background:${b.color}"></div><div class="book-title">${b.title}</div><div class="book-author">${b.author}</div><div class="book-meta">✦ ${b.highlights.length} Highlights</div></div>`).join('');
+  return`<div class="page-header"><div><div class="page-title">Bibliothek</div><div class="page-subtitle">${S.books.length} Bücher · ${totalH()} Highlights</div></div><button class="btn btn-primary" onclick="set({showAddBook:true})">+ Buch</button></div>
+  <div class="content">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Bücher</div><div class="stat-value">${S.books.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Highlights</div><div class="stat-value">${totalH()}</div></div>
+      <div class="stat-card"><div class="stat-label">Freundin</div><div class="stat-value" style="font-size:17px;margin-top:5px">${S.friendName}</div></div>
+      <div class="stat-card"><div class="stat-label">Matrix</div><div class="stat-value" style="font-size:17px;margin-top:5px">${S.matrix?'✓':'—'}</div></div>
+    </div>
+    ${S.books.length?`<div class="grid-auto">${cards}</div>`:`<div class="empty"><div class="empty-icon">📖</div><div class="empty-title">Noch keine Bücher</div><div class="empty-sub">Füge dein erstes Buch hinzu und beginne, Highlights zu sammeln.</div><button class="btn btn-primary" onclick="set({showAddBook:true})">Erstes Buch hinzufügen</button></div>`}
+  </div>
+  <button class="fab" onclick="set({showAddBook:true})">+</button>`;
 }
-.nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 24px;
-  color: rgba(232,240,236,0.6);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 400;
-  transition: all 0.15s;
-  border-left: 2px solid transparent;
-  user-select: none;
+
+function viewBook(b){
+  const hl=b.highlights.map(h=>`<div class="highlight-item"><div class="highlight-text">${h.text}</div><div class="highlight-meta">${h.page?`<span>S. ${h.page}</span>`:''}<button class="btn btn-secondary btn-sm" onclick="delHighlight(${b.id},${h.id})">× Löschen</button></div></div>`).join('');
+  return`<div class="page-header"><div><div style="font-size:13px;color:var(--text3);margin-bottom:4px;cursor:pointer" onclick="set({view:'library',selectedBook:null})">← Bibliothek</div><div class="page-title">${b.title}</div><div class="page-subtitle">${b.author} · ${b.highlights.length} Highlights</div></div><div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="delBook(${b.id})">Löschen</button><button class="btn btn-primary" onclick="set({showAddHighlight:true})">+ Highlight</button></div></div>
+  <div class="content"><div class="card">${b.highlights.length?hl:`<div class="empty" style="padding:36px 20px"><div class="empty-title" style="font-size:17px">Keine Highlights</div><div class="empty-sub">Füge deine ersten markierten Stellen hinzu.</div><button class="btn btn-primary" onclick="set({showAddHighlight:true})">Highlight hinzufügen</button></div>`}</div></div>
+  <button class="fab" onclick="set({showAddHighlight:true})">+</button>`;
 }
-.nav-item:hover { color: #e8f0ec; background: rgba(232,240,236,0.08); }
-.nav-item.active { color: #e
+
+function viewMatrix(){
+  if(S.matrixLoading)return`<div class="page-header"><div><div class="page-title">Wissensmatrix</div><div class="page-subtitle">Analyse läuft...</div></div></div><div class="content"><div class="card"><div class="analyzing"><div class="analyzing-spinner"></div><div class="analyzing-text">Deine Highlights werden analysiert...</div><div style="font-size:13px;color:var(--text3);margin-top:8px">Themen, Muster, blinde Flecken</div></div></div></div>`;
+  if(!S.matrix)return`<div class="page-header"><div><div class="page-title">Wissensmatrix</div><div class="page-subtitle">KI-Analyse deiner Highlights</div></div></div><div class="content"><div class="card"><div class="empty"><div class="empty-icon">🧠</div><div class="empty-title">Noch keine Analyse</div><div class="empty-sub">Die KI analysiert deine Highlights und erstellt deine persönliche Wissensmatrix — mit blinden Flecken und Buchempfehlung.</div>${totalH()<2?'<div style="font-size:13px;color:var(--text3);margin-bottom:14px">Mindestens 2 Highlights erforderlich.</div>':''}<button class="btn btn-primary" onclick="analyze()" ${totalH()<2?'disabled':''}>Analyse starten</button></div></div></div>`;
+  const m=S.matrix;
+  const bars=m.matrix.map(t=>`<div class="matrix-bar-row"><div class="matrix-bar-header"><span class="matrix-bar-label">${t.thema}</span><span class="matrix-bar-pct">${t.prozent}%</span></div><div class="matrix-bar-track"><div class="matrix-bar-fill" style="width:${t.prozent}%"></div></div><div style="font-size:12px;color:var(--text3);margin-top:3px">${t.beschreibung}</div></div>`).join('');
+  const bsp=m.blindSpots.map(b=>`<div class="blind-spot-pair"><span class="blind-spot-have">viel ${b.vorhanden}</span><span class="blind-spot-arrow">→</span><span class="blind-spot-missing">wenig ${b.fehlend}</span></div>`).join('');
+  const muster=m.dominanteMuster.map(p=>`<span class="tag" style="margin-right:6px;margin-bottom:6px">${p}</span>`).join('');
+  return`<div class="page-header"><div><div class="page-title">Wissensmatrix</div><div class="page-subtitle">${totalH()} Highlights · ${S.books.length} Bücher</div></div><button class="btn btn-secondary btn-sm" onclick="analyze()">Neu analysieren</button></div>
+  <div class="content">
+    <div class="grid-2" style="margin-bottom:18px">
+      <div class="card"><div class="section-header"><div class="section-title">Themenverteilung</div></div>${bars}</div>
+      <div>
+        <div class="card" style="margin-bottom:14px"><div class="section-title" style="margin-bottom:10px">Kerninsight</div><div class="insight-card" style="margin-bottom:0"><div class="insight-text" style="font-family:var(--serif);font-style:italic;font-size:15px">"${m.kerninsight}"</div></div></div>
+        <div class="card"><div class="section-title" style="margin-bottom:10px">Dominante Muster</div><div style="display:flex;flex-wrap:wrap">${muster}</div></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="section-header"><div class="section-title">Blinde Flecken</div></div><div style="font-size:13px;color:var(--text3);margin-bottom:12px">Systematische Unterrepräsentation</div>${bsp}</div>
+      <div class="card"><div class="section-title" style="margin-bottom:10px">Fehlendes Puzzlestück</div><div class="insight-card"><div class="insight-label">Entwicklungsbrücke</div><div class="insight-text">${m.puzzleStueck}</div></div><div style="margin-top:14px"><div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:6px">Nächste Empfehlung</div><div style="font-size:14px;font-family:var(--serif);font-style:italic;color:var(--accent)">→ ${m.naechstesBuch}</div></div></div>
+    </div>
+  </div>`;
+}
+
+function viewFriend(){
+  return`<div class="page-header"><div><div class="page-title">${S.friendName}s Profil</div><div class="page-subtitle">Social Reading · Coming soon</div></div></div>
+  <div class="content"><div class="card" style="text-align:center;padding:48px 24px">
+    <div style="width:64px;height:64px;border-radius:50%;background:var(--accent);color:#e8f0ec;display:flex;align-items:center;justify-content:center;font-size:28px;font-family:var(--serif);margin:0 auto 18px">${S.friendName[0]}</div>
+    <div style="font-family:var(--serif);font-size:20px;margin-bottom:8px">${S.friendName}</div>
+    <div style="font-size:14px;color:var(--text3);max-width:280px;margin:0 auto 24px;line-height:1.65">In der nächsten Version kann ${S.friendName} sich registrieren, ihre Bibliothek teilen und eure Matrizen vergleichen.</div>
+    <div style="background:var(--accent-light);padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;color:var(--accent);display:inline-block">Stufe 2: Matrizen vergleichen · gemeinsame Highlights · gegenseitige Blind Spots</div>
+  </div></div>`;
+}
+
+function modalSettings(){
+  return`<div class="modal-overlay" onclick="if(event.target===this)set({showSettings:false})"><div class="modal">
+    <div class="modal-header"><div class="modal-title">Einstellungen</div><button class="btn-icon" onclick="set({showSettings:false})">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Anthropic API Key</label><input type="password" id="aki" value="${S.apiKey}" placeholder="sk-ant-..." style="font-family:monospace;font-size:13px"/><div style="font-size:12px;color:var(--text3);margin-top:5px">Wird nur lokal auf deinem Gerät gespeichert. Nie weitergegeben.</div></div>
+      <div class="form-group"><label>Name deiner Freundin</label><input type="text" id="fni" value="${S.friendName}" placeholder="Laura"/></div>
+      <div class="divider"></div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:14px">API Key: <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2)">console.anthropic.com</a></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="set({showSettings:false})">Abbrechen</button>
+        <button class="btn btn-primary" onclick="saveSettings()">Speichern</button>
+      </div>
+    </div>
+  </div></div>`;
+}
+
+function modalAddBook(){
+  return`<div class="modal-overlay" onclick="if(event.target===this)set({showAddBook:false})"><div class="modal">
+    <div class="modal-header"><div class="modal-title">Buch hinzufügen</div><button class="btn-icon" onclick="set({showAddBook:false})">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Titel</label><input type="text" id="nbt" placeholder="Buchtitel..." autofocus/></div>
+      <div class="form-group"><label>Autor:in</label><input type="text" id="nba" placeholder="Name..."/></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-secondary" onclick="set({showAddBook:false})">Abbrechen</button>
+        <button class="btn btn-primary" onclick="addBook()">Hinzufügen</button>
+      </div>
+    </div>
+  </div></div>`;
+}
+
+function modalAddHighlight(){
+  const b=getB(S.selectedBook);
+  return`<div class="modal-overlay" onclick="if(event.target===this)set({showAddHighlight:false})"><div class="modal">
+    <div class="modal-header"><div class="modal-title">Highlight hinzufügen</div><button class="btn-icon" onclick="set({showAddHighlight:false})">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text3);margin-bottom:12px;font-style:italic">${b?.title}</div>
+      <div class="form-group"><label>Markierte Stelle</label><textarea id="nht" placeholder="Text einfügen oder eingeben..."></textarea></div>
+      <div class="form-group"><label>Seite (optional)</label><input type="text" id="nhp" placeholder="z.B. 47" inputmode="numeric"/></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-secondary" onclick="set({showAddHighlight:false})">Abbrechen</button>
+        <button class="btn btn-primary" onclick="addHighlight()">Speichern</button>
+      </div>
+    </div>
+  </div></div>`;
+}
+
+function render(){
+  const app=document.getElementById('app');
+  if(!app)return;
+  let main='';
+  if(S.view==='book'&&S.selectedBook)main=viewBook(getB(S.selectedBook));
+  else if(S.view==='matrix')main=viewMatrix();
+  else if(S.view==='friend')main=viewFriend();
+  else main=viewLibrary();
+  let modal='';
+  if(S.showSettings)modal=modalSettings();
+  else if(S.showAddBook)modal=modalAddBook();
+  else if(S.showAddHighlight&&S.selectedBook)modal=modalAddHighlight();
+  app.innerHTML=`${sidebar()}<div class="main">${main}${bottomNav()}</div>${modal}`;
+}
+
+render();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
