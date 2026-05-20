@@ -1,8 +1,11 @@
 {
-  "functions": {
-    "api/proxy.js": {
-      "memory": 128,
-      "maxDuration": 10
-    }
-  }
+  "version": 2,
+  "builds": [
+    { "src": "api/proxy.js", "use": "@vercel/node" },
+    { "src": "*.html", "use": "@vercel/static" },
+    { "src": "*.js", "use": "@vercel/static" },
+    { "src": "*.json", "use": "@vercel/static" },
+    { "src": "*.png", "use": "@vercel/static" },
+    { "src": "*.svg", "use": "@vercel/static" }
+  ]
 }
