@@ -308,7 +308,7 @@ async function markSeen(id){
 // OCR
 async function extractText(base64,mime){
   if(!S.anthropicKey){toast('API Key fehlt','error');return null}
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S.anthropicKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mime,data:base64}},{type:'text',text:'Extrahiere den markierten oder relevanten Text aus diesem Bild. Nur den reinen Text, keine Erklärungen.'}]}]})});
+  const r=await fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S.anthropicKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mime,data:base64}},{type:'text',text:'Extrahiere den markierten oder relevanten Text aus diesem Bild. Nur den reinen Text, keine Erklärungen.'}]}]})});
   const d=await r.json();return d.content?.[0]?.text||null;
 }
 
@@ -320,7 +320,7 @@ async function analyze(){
   set({matrixLoading:true,view:'matrix'});
   const prompt=`Highlights:\n\n${allHL.join('\n\n')}\n\nAntworte NUR als reines JSON:\n{"matrix":[{"thema":"Name","prozent":25,"beschreibung":"Kurz"}],"dominanteMuster":["M1","M2","M3"],"blindSpots":[{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"}],"puzzleStueck":"Ein Satz.","naechstesBuch":"Titel — Autor","kerninsight":"Ein präziser Satz."}\n\n4-6 matrix-Einträge, Summe=100.`;
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S.anthropicKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const r=await fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S.anthropicKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
     const d=await r.json();if(d.error)throw new Error(d.error.message);
     const m=JSON.parse((d.content?.[0]?.text||'').replace(/```json|```/g,'').trim());
     set({matrix:m,matrixLoading:false});
