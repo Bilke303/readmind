@@ -283,8 +283,8 @@ async function deleteBook(id){
 }
 
 // HIGHLIGHTS
-async function addHighlight(bookId,text,note,page){
-  const {data,error}=await sb.from('highlights').insert({book_id:bookId,user_id:S.user.id,text,note,page}).select().single();
+async function addHighlight(bookId,text,note,page,imagePath){
+  const {data,error}=await sb.from('highlights').insert({book_id:bookId,user_id:S.user.id,text,note,page,image_url:imagePath||null}).select().single();
   if(error){toast(error.message,'error');return}
   set({highlights:{...S.highlights,[bookId]:[data,...(S.highlights[bookId]||[])]},modal:null,matrix:null,photoTab:'text'});
   toast('Highlight gespeichert ✓');
@@ -305,24 +305,34 @@ async function markSeen(id){
   set({inbox,inboxUnseen:Math.max(0,S.inboxUnseen-1)});
 }
 
-// OCR
-async function extractText(base64,mime){
-  if(!S.anthropicKey){toast('API Key fehlt','error');return null}
-  const r=await fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({apiKey:S.anthropicKey,model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mime,data:base64}},{type:'text',text:'Extrahiere den markierten oder relevanten Text aus diesem Bild. Nur den reinen Text, keine Erklärungen.'}]}]})});
-  const d=await r.json();return d.content?.[0]?.text||null;
+// Upload image to Supabase Storage
+async function uploadImage(file,userId){
+  const ext=(file.name||'photo').split('.').pop()||'jpg';
+  const path=`${userId}/${Date.now()}.${ext}`;
+  const {error}=await sb.storage.from('highlights').upload(path,file,{upsert:true});
+  if(error){toast('Foto-Upload fehlgeschlagen: '+error.message,'error');return null;}
+  return path;
 }
 
 // MATRIX
 async function analyze(){
   if(!S.anthropicKey){toast('API Key fehlt','error');set({modal:{type:'settings'}});return}
-  const allHL=S.books.flatMap(b=>(S.highlights[b.id]||[]).map(h=>`[${b.title} von ${b.author}] "${h.text}"`));
+  const allHL=S.books.flatMap(b=>(S.highlights[b.id]||[]).map(h=>({book:b.title,author:b.author,text:h.text,image:h.image_url})));
   if(allHL.length<2){toast('Mindestens 2 Highlights erforderlich');return}
   set({matrixLoading:true,view:'matrix'});
-  const prompt=`Highlights:\n\n${allHL.join('\n\n')}\n\nAntworte NUR als reines JSON:\n{"matrix":[{"thema":"Name","prozent":25,"beschreibung":"Kurz"}],"dominanteMuster":["M1","M2","M3"],"blindSpots":[{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"}],"puzzleStueck":"Ein Satz.","naechstesBuch":"Titel — Autor","kerninsight":"Ein präziser Satz."}\n\n4-6 matrix-Einträge, Summe=100.`;
+  const textContent=allHL.map(h=>`[${h.book} von ${h.author}] "${h.text}"`).join('\n\n');
+  const imageHighlights=allHL.filter(h=>h.image);
+  const msgContent=[{type:'text',text:`Analysiere diese Highlights und ggf. Fotos:\n\n${textContent}\n\nAntworte NUR als reines JSON:\n{"matrix":[{"thema":"Name","prozent":25,"beschreibung":"Kurz"}],"dominanteMuster":["M1","M2","M3"],"blindSpots":[{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"}],"puzzleStueck":"Ein Satz.","naechstesBuch":"Titel — Autor","kerninsight":"Ein präziser Satz."}\n\n4-6 matrix-Einträge, Summe=100.`}];
+  for(const h of imageHighlights){
+    try{
+      const {data}=await sb.storage.from('highlights').download(h.image);
+      if(data){const reader=new FileReader();const b64=await new Promise(r=>{reader.onload=e=>r(e.target.result.split(',')[1]);reader.readAsDataURL(data);});msgContent.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}});}
+    }catch(e){}
+  }
   try{
-    const r=await fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({apiKey:S.anthropicKey,model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const r=await fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:S.anthropicKey,model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:msgContent}]})});
     const d=await r.json();if(d.error)throw new Error(d.error.message);
-    const m=JSON.parse((d.content?.[0]?.text||'').replace(/```json|```/g,'').trim());
+    const m=JSON.parse((d.content?.[0]?.text||'').replace(/\`\`\`json|\`\`\`/g,'').trim());
     set({matrix:m,matrixLoading:false});
   }catch(e){set({matrixLoading:false});toast('Fehler: '+e.message,'error')}
 }
@@ -509,7 +519,10 @@ function viewFolder(folder){
 function viewBook(b){
   const hls=S.highlights[b.id]||[];
   const folder=S.folders.find(f=>f.id===b.folder_id);
-  const hlHTML=hls.map(h=>`<div class="highlight-item">
+  const hlHTML=hls.map(h=>{
+    const imgUrl=h.image_url?sb.storage.from('highlights').getPublicUrl(h.image_url).data.publicUrl:null;
+    return`<div class="highlight-item">
+    ${imgUrl?`<img src="${imgUrl}" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;margin-bottom:10px"/>`:'' }
     <div class="highlight-text">${h.text}</div>
     ${h.note?`<div class="highlight-note">💭 ${h.note}</div>`:''}
     <div class="highlight-meta">
@@ -517,7 +530,7 @@ function viewBook(b){
       <button class="share-btn" onclick="openShare('${h.id}')">↗ Teilen</button>
       <button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px" onclick="deleteHighlight('${b.id}','${h.id}')">×</button>
     </div>
-  </div>`).join('');
+  </div>`;}).join('');
   return`<div class="page-header">
     <div><div style="font-size:13px;color:var(--text3);margin-bottom:4px;cursor:pointer" onclick="${folder?`openFolder('${folder.id}')`:"set({view:'library',selectedBook:null})"}">← ${folder?folder.name:'Bibliothek'}</div>
     <div class="page-title">${b.title}</div>
@@ -738,39 +751,23 @@ window.submitHighlight=(bookId)=>{
   const text=document.getElementById('hl-text')?.value?.trim();
   const note=document.getElementById('hl-note')?.value?.trim();
   const page=document.getElementById('hl-page')?.value?.trim();
-  if(!text){toast('Bitte Text eingeben','error');return}
-  addHighlight(bookId,text,note||null,page||null);
+  const imagePath=S._pendingImagePath||null;
+  if(!text&&!imagePath){toast('Bitte Text eingeben oder Foto hochladen','error');return}
+  addHighlight(bookId,text||'[Foto-Highlight]',note||null,page||null,imagePath);
+  S._pendingImagePath=null;
 };
 
 window.handlePhoto=async(event,bookId)=>{
   const file=event.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  const img=new Image();
   const objectUrl=URL.createObjectURL(file);
-  img.onload=async()=>{
-    URL.revokeObjectURL(objectUrl);
-    const canvas=document.createElement('canvas');
-    let w=img.width,h=img.height;
-    const maxSize=1200;
-    if(w>maxSize||h>maxSize){if(w>h){h=Math.round(h*maxSize/w);w=maxSize;}else{w=Math.round(w*maxSize/h);h=maxSize;}}
-    canvas.width=w;canvas.height=h;
-    canvas.getContext('2d').drawImage(img,0,0,w,h);
-    const compressed=canvas.toDataURL('image/jpeg',0.75);
-    const base64=compressed.split(',')[1];
-    const preview=document.getElementById('photo-preview-area');
-    if(preview)preview.innerHTML=`<img src="${compressed}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">⏳ Text wird extrahiert...</div>`;
-    const btn=document.getElementById('hl-save-btn');if(btn)btn.disabled=true;
-    const text=await extractText(base64,'image/jpeg');
-    if(text){
-      const ex=document.getElementById('hl-text-extracted');if(ex)ex.style.display='block';
-      const ta=document.getElementById('hl-text');if(ta)ta.value=text;
-      if(preview)preview.innerHTML=`<img src="${compressed}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">✓ Text extrahiert</div>`;
-    }else{
-      if(preview)preview.innerHTML=`<img src="${compressed}" class="photo-preview"/><div style="font-size:13px;color:#c0392b">Extraktion fehlgeschlagen — bitte manuell eingeben</div>`;
-    }
-    if(btn)btn.disabled=false;
-  };
-  img.src=objectUrl;
+  const preview=document.getElementById('photo-preview-area');
+  if(preview)preview.innerHTML=`<img src="${objectUrl}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">⏳ Foto wird hochgeladen...</div>`;
+  const btn=document.getElementById('hl-save-btn');if(btn)btn.disabled=true;
+  const path=await uploadImage(file,S.user.id);
+  if(path){S._pendingImagePath=path;if(preview)preview.innerHTML=`<img src="${objectUrl}" class="photo-preview"/><div style="font-size:13px;color:var(--accent2)">✓ Foto gespeichert</div>`;}
+  else{if(preview)preview.innerHTML=`<img src="${objectUrl}" class="photo-preview"/><div style="font-size:13px;color:#c0392b">Upload fehlgeschlagen</div>`;}
+  if(btn)btn.disabled=false;
+}
 };
 
 window.saveSettings=()=>{
