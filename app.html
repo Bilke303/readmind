@@ -171,7 +171,7 @@ const FOLDER_COLORS=['#2D4A3E','#4a7c66','#8B7355','#6B5B7B','#4A6B8A','#7A5C4A'
 const BOOK_COLORS=['#2D4A3E','#4a7c66','#8B7355','#6B5B7B','#4A6B8A','#7A5C4A','#3D6B5A','#B5614A'];
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
-let S={user:null,profile:null,view:'library',books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedFolder:null,selectedBook:null,matrix:null,matrixLoading:false,modal:null,authTab:'login',anthropicKey:localStorage.getItem(ANT_KEY)||'',allProfiles:[],photoTab:'text',selectedColor:FOLDER_COLORS[0],selectedStars:0,_pendingImagePath:null,_bookMode:'private',_citeFormat:'apa'};
+let S={user:null,profile:null,view:'library',books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedFolder:null,selectedBook:null,matrix:null,matrixLoading:false,modal:null,authTab:'login',anthropicKey:localStorage.getItem(ANT_KEY)||'',allProfiles:[],friends:[],friendRequests:[],photoTab:'text',selectedColor:FOLDER_COLORS[0],selectedStars:0,_pendingImagePath:null,_bookMode:'private',_citeFormat:'apa'};
 
 function set(p){
   // Always preserve anthropicKey from localStorage
@@ -228,6 +228,57 @@ async function loadInbox(){
 async function loadProfiles(){
   var res=await sb.from('profiles').select('*').neq('id',S.user.id);
   S.allProfiles=res.data||[];
+}
+
+async function loadFriends(){
+  var res=await sb.from('friendships')
+    .select('*, requester:profiles!friendships_requester_id_fkey(id,display_name,email), addressee:profiles!friendships_addressee_id_fkey(id,display_name,email)')
+    .or('requester_id.eq.'+S.user.id+',addressee_id.eq.'+S.user.id);
+  var data=res.data||[];
+  S.friends=data.filter(function(f){return f.status==='accepted';}).map(function(f){
+    return f.requester_id===S.user.id?f.addressee:f.requester;
+  });
+  S.friendRequests=data.filter(function(f){return f.status==='pending'&&f.addressee_id===S.user.id;}).map(function(f){
+    return {id:f.id,from:f.requester};
+  });
+}
+
+async function sendFriendRequest(email){
+  // Find user by email
+  var res=await sb.from('profiles').select('*').eq('email',email.trim().toLowerCase()).single();
+  if(res.error||!res.data){toast('Kein Nutzer mit dieser E-Mail gefunden','error');return;}
+  if(res.data.id===S.user.id){toast('Das bist du selbst','error');return;}
+  // Check if already friends or request pending
+  var existing=await sb.from('friendships').select('*')
+    .or('and(requester_id.eq.'+S.user.id+',addressee_id.eq.'+res.data.id+'),and(requester_id.eq.'+res.data.id+',addressee_id.eq.'+S.user.id+')').single();
+  if(existing.data){toast('Anfrage bereits gesendet oder bereits befreundet','error');return;}
+  var ins=await sb.from('friendships').insert({requester_id:S.user.id,addressee_id:res.data.id,status:'pending'});
+  if(ins.error){toast(ins.error.message,'error');return;}
+  toast('Freundschaftsanfrage gesendet an '+res.data.display_name+' ✓');
+  set({modal:null});
+}
+
+async function acceptFriendRequest(id){
+  await sb.from('friendships').update({status:'accepted'}).eq('id',id);
+  await loadFriends();
+  render();
+  toast('Freundschaft bestätigt ✓');
+}
+
+async function declineFriendRequest(id){
+  await sb.from('friendships').delete().eq('id',id);
+  await loadFriends();
+  render();
+  toast('Anfrage abgelehnt');
+}
+
+async function removeFriend(friendId){
+  if(!confirm('Freundschaft entfernen?'))return;
+  await sb.from('friendships').delete()
+    .or('and(requester_id.eq.'+S.user.id+',addressee_id.eq.'+friendId+'),and(requester_id.eq.'+friendId+',addressee_id.eq.'+S.user.id+')');
+  await loadFriends();
+  render();
+  toast('Freundschaft entfernt');
 }
 
 async function uploadImage(file,userId){
@@ -558,6 +609,7 @@ function renderApp(){
   if(S.modal){
     var mt=S.modal.type;
     if(mt==='addBook')modal=modalAddBook();
+    else if(mt==='addFriend')modal=modalAddFriend();
     else if(mt==='addHighlight')modal=modalAddHighlight(S.modal.bookId);
     else if(mt==='share')modal=modalShare(S.modal.hlId);
     else if(mt==='settings')modal=modalSettings();
@@ -730,9 +782,32 @@ function viewInbox(){
 }
 
 function viewFriend(){
-  var profiles=S.allProfiles;
-  return '<div class="page-header"><div><div class="page-title">Freundinnen</div><div class="page-subtitle">Registrierte Nutzerinnen</div></div></div>'
-    +'<div class="content">'+(profiles.length?profiles.map(function(p){return '<div class="card" style="text-align:center;padding:32px"><div style="width:56px;height:56px;border-radius:50%;background:var(--accent);color:#e8f0ec;display:flex;align-items:center;justify-content:center;font-size:22px;font-family:var(--serif);margin:0 auto 14px">'+(p.display_name||'?')[0].toUpperCase()+'</div><div style="font-family:var(--serif);font-size:18px;margin-bottom:4px">'+(p.display_name||p.email)+'</div><div style="font-size:13px;color:var(--text3)">'+p.email+'</div></div>';}).join(''):'<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">Noch niemand registriert</div><div class="empty-sub">Sobald Laura sich registriert, erscheint sie hier.</div></div>')+'</div>';
+  var friends=S.friends||[];
+  var requests=S.friendRequests||[];
+  var requestBadge=requests.length>0?'<span class="nav-badge" style="background:var(--accent);color:#e8f0ec;margin-left:6px">'+requests.length+'</span>':'';
+  var friendCards=friends.map(function(f){
+    return '<div class="card" style="display:flex;align-items:center;gap:16px;padding:16px 20px;margin-bottom:10px">'
+      +'<div style="width:44px;height:44px;border-radius:50%;background:var(--accent);color:#e8f0ec;display:flex;align-items:center;justify-content:center;font-size:18px;font-family:var(--serif);flex-shrink:0">'+(f.display_name||'?')[0].toUpperCase()+'</div>'
+      +'<div style="flex:1"><div style="font-weight:500;font-size:15px">'+(f.display_name||f.email)+'</div><div style="font-size:13px;color:var(--text3)">'+f.email+'</div></div>'
+      +'<button class="btn btn-secondary btn-sm" onclick="removeFriend(\''+f.id+'\')">Entfernen</button>'
+      +'</div>';
+  }).join('');
+  var requestCards=requests.map(function(r){
+    return '<div class="card" style="display:flex;align-items:center;gap:16px;padding:16px 20px;margin-bottom:10px;background:#f0f7f4;border-color:rgba(45,74,62,0.2)">'
+      +'<div style="width:44px;height:44px;border-radius:50%;background:var(--accent2);color:#e8f0ec;display:flex;align-items:center;justify-content:center;font-size:18px;font-family:var(--serif);flex-shrink:0">'+(r.from.display_name||'?')[0].toUpperCase()+'</div>'
+      +'<div style="flex:1"><div style="font-weight:500;font-size:15px">'+(r.from.display_name||r.from.email)+'</div><div style="font-size:13px;color:var(--text3)">möchte sich mit dir verbinden</div></div>'
+      +'<div style="display:flex;gap:8px">'
+      +'<button class="btn btn-primary btn-sm" onclick="acceptFriendRequest(\''+r.id+'\')">✓</button>'
+      +'<button class="btn btn-secondary btn-sm" onclick="declineFriendRequest(\''+r.id+'\')">✕</button>'
+      +'</div></div>';
+  }).join('');
+  return '<div class="page-header"><div><div class="page-title">Freunde'+requestBadge+'</div><div class="page-subtitle">'+friends.length+' Verbindungen</div></div>'
+    +'<button class="btn btn-primary btn-sm" onclick="set({modal:{type:\'addFriend\'}})">+ Freund hinzufügen</button></div>'
+    +'<div class="content">'
+    +(requests.length?'<div style="font-size:12px;font-weight:500;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Anfragen ('+requests.length+')</div>'+requestCards:'')
+    +(friends.length?'<div style="font-size:12px;font-weight:500;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;margin-top:'+(requests.length?'20px':'0')+'">Meine Freunde</div>'+friendCards
+      :'<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">Noch keine Verbindungen</div><div class="empty-sub">Füge Freunde per E-Mail hinzu um Highlights zu teilen.</div><button class="btn btn-primary" onclick="set({modal:{type:\'addFriend\'}})">Ersten Freund hinzufügen</button></div>')
+    +'</div>';
 }
 
 function viewMatrix(){
@@ -873,12 +948,31 @@ function modalAddHighlight(bookId){
     +'</div></div></div></div>';
 }
 
+function modalAddFriend(){
+  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">'
+    +'<div class="modal-header"><div class="modal-title">Freund hinzufügen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="form-group"><label>E-Mail-Adresse</label><input type="email" id="friend-email" placeholder="freund@email.com" autofocus/>'
+    +'<div style="font-size:12px;color:var(--text3);margin-top:5px">Die Person muss bereits bei Readmind registriert sein.</div></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
+    +'<button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>'
+    +'<button class="btn btn-primary" onclick="submitAddFriend()">Anfrage senden</button>'
+    +'</div></div></div></div>';
+}
+
 function modalShare(hlId){
-  var profiles=S.allProfiles;
+  var friends=S.friends||[];
   return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">'
     +'<div class="modal-header"><div class="modal-title">Highlight teilen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>'
-    +'<div class="modal-body">'+(profiles.length?profiles.map(function(p){return '<button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:8px" onclick="shareHighlight(\''+hlId+'\',\''+p.id+'\')">Teilen mit '+(p.display_name||p.email)+'</button>';}).join(''):'<div style="font-size:14px;color:var(--text3);text-align:center;padding:16px">Noch niemand registriert.</div>')+'</div>'
-    +'</div></div>';
+    +'<div class="modal-body">'
+    +(friends.length
+      ?friends.map(function(f){return '<button class="btn btn-secondary" style="width:100%;justify-content:flex-start;margin-bottom:8px;gap:12px" onclick="shareHighlight(\''+hlId+'\',\''+f.id+'\')">'
+        +'<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);color:#e8f0ec;display:flex;align-items:center;justify-content:center;font-size:14px;font-family:var(--serif);flex-shrink:0">'+(f.display_name||'?')[0].toUpperCase()+'</div>'
+        +(f.display_name||f.email)
+        +'</button>';}).join('')
+      :'<div style="text-align:center;padding:20px"><div style="font-size:14px;color:var(--text3);margin-bottom:14px">Noch keine Freunde hinzugefügt.</div><button class="btn btn-primary" style="margin:0 auto" onclick="set({modal:{type:\'addFriend\'}})">Freund hinzufügen →</button></div>'
+    )
+    +'</div></div></div>';
 }
 
 function modalSettings(){
@@ -1044,6 +1138,16 @@ window.handlePhoto=async function(event,bookId){
   }
   if(btn)btn.disabled=false;
 };
+window.submitAddFriend=function(){
+  var email=(document.getElementById('friend-email')||{value:''}).value.trim();
+  if(!email){toast('E-Mail eingeben','error');return;}
+  sendFriendRequest(email);
+};
+
+window.acceptFriendRequest=acceptFriendRequest;
+window.declineFriendRequest=declineFriendRequest;
+window.removeFriend=removeFriend;
+
 window.saveSettings=function(){
   var key=(document.getElementById('api-key-input').value||'').trim();
   S.anthropicKey=key;localStorage.setItem(ANT_KEY,key);
@@ -1064,7 +1168,7 @@ window.openShare=function(hlId){if(!S.allProfiles.length)loadProfiles();set({mod
     S.user=sess.data.session.user;
     var pr=await sb.from('profiles').select('*').eq('id',S.user.id).single();
     S.profile=pr.data;
-    await loadAll();await loadInbox();await loadProfiles();
+    await loadAll();await loadInbox();await loadProfiles();await loadFriends();
   }
   render();
   sb.auth.onAuthStateChange(async function(event,session){
@@ -1072,7 +1176,7 @@ window.openShare=function(hlId){if(!S.allProfiles.length)loadProfiles();set({mod
       S.user=session.user;
       var pr=await sb.from('profiles').select('*').eq('id',session.user.id).single();
       S.profile=pr.data;
-      await loadAll();await loadInbox();await loadProfiles();
+      await loadAll();await loadInbox();await loadProfiles();await loadFriends();
       set({view:'library'});
     }else{
       set({user:null,profile:null,books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedBook:null,matrix:null});
