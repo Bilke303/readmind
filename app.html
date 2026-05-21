@@ -231,27 +231,39 @@ async function loadProfiles(){
 }
 
 async function loadFriends(){
-  // Load sent requests
-  var sent=await sb.from('friendships')
-    .select('*, addressee:profiles!friendships_addressee_id_fkey(id,display_name,email)')
-    .eq('requester_id', S.user.id);
-  // Load received requests  
-  var received=await sb.from('friendships')
-    .select('*, requester:profiles!friendships_requester_id_fkey(id,display_name,email)')
-    .eq('addressee_id', S.user.id);
+  // Simple queries without foreign key joins
+  var sent=await sb.from('friendships').select('*').eq('requester_id',S.user.id);
+  var received=await sb.from('friendships').select('*').eq('addressee_id',S.user.id);
 
   var sentData=sent.data||[];
   var receivedData=received.data||[];
 
-  // Friends = accepted from both directions
-  S.friends=[
-    ...sentData.filter(function(f){return f.status==='accepted';}).map(function(f){return Object.assign({},f.addressee,{friendshipId:f.id});}).filter(Boolean),
-    ...receivedData.filter(function(f){return f.status==='accepted';}).map(function(f){return Object.assign({},f.requester,{friendshipId:f.id});}).filter(Boolean)
-  ];
+  // Collect all profile IDs we need
+  var profileIds=[];
+  sentData.forEach(function(f){if(f.addressee_id)profileIds.push(f.addressee_id);});
+  receivedData.forEach(function(f){if(f.requester_id)profileIds.push(f.requester_id);});
+
+  // Load profiles separately
+  var profiles={};
+  if(profileIds.length>0){
+    var pr=await sb.from('profiles').select('id,display_name,email').in('id',profileIds);
+    (pr.data||[]).forEach(function(p){profiles[p.id]=p;});
+  }
+
+  // Friends = accepted
+  S.friends=[];
+  sentData.filter(function(f){return f.status==='accepted';}).forEach(function(f){
+    var p=profiles[f.addressee_id];
+    if(p)S.friends.push(Object.assign({},p,{friendshipId:f.id}));
+  });
+  receivedData.filter(function(f){return f.status==='accepted';}).forEach(function(f){
+    var p=profiles[f.requester_id];
+    if(p)S.friends.push(Object.assign({},p,{friendshipId:f.id}));
+  });
 
   // Pending requests received by me
   S.friendRequests=receivedData.filter(function(f){return f.status==='pending';}).map(function(f){
-    return {id:f.id,from:f.requester};
+    return {id:f.id,from:profiles[f.requester_id]||{display_name:'Unbekannt',email:''}};
   });
 }
 
