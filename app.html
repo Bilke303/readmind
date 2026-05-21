@@ -171,7 +171,7 @@ const FOLDER_COLORS=['#2D4A3E','#4a7c66','#8B7355','#6B5B7B','#4A6B8A','#7A5C4A'
 const BOOK_COLORS=['#2D4A3E','#4a7c66','#8B7355','#6B5B7B','#4A6B8A','#7A5C4A','#3D6B5A','#B5614A'];
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
-let S={user:null,profile:null,view:'library',books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedFolder:null,selectedBook:null,matrix:null,matrixLoading:false,modal:null,authTab:'login',anthropicKey:localStorage.getItem(ANT_KEY)||'',allProfiles:[],photoTab:'text',selectedColor:FOLDER_COLORS[0],selectedStars:0,_pendingImagePath:null};
+let S={user:null,profile:null,view:'library',books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedFolder:null,selectedBook:null,matrix:null,matrixLoading:false,modal:null,authTab:'login',anthropicKey:localStorage.getItem(ANT_KEY)||'',allProfiles:[],photoTab:'text',selectedColor:FOLDER_COLORS[0],selectedStars:0,_pendingImagePath:null,_bookMode:'private',_citeFormat:'apa'};
 
 function set(p){
   // Always preserve anthropicKey from localStorage
@@ -257,9 +257,14 @@ async function assignToFolder(bookId,folderId){
   S.books=S.books.map(function(b){return b.id===bookId?Object.assign({},b,{folder_id:folderId||null}):b;});
   set({modal:null});toast(folderId?'Buch zugeordnet':'Aus Ordner entfernt');
 }
-async function addBook(title,author,status,rating,folderId){
+async function addBook(title,author,status,rating,folderId,mode,isbn,year,publisher,edition,cite){
   var color=BOOK_COLORS[S.books.length%BOOK_COLORS.length];
-  var res=await sb.from('books').insert({user_id:S.user.id,title:title,author:author,color:color,status:status,rating:rating,folder_id:folderId||null}).select().single();
+  var res=await sb.from('books').insert({
+    user_id:S.user.id,title:title,author:author,color:color,
+    status:status||'reading',rating:rating||0,folder_id:folderId||null,
+    mode:mode||'private',isbn:isbn||null,year:year||null,
+    publisher:publisher||null,edition:edition||null,cite_format:cite||'apa'
+  }).select().single();
   if(res.error){toast(res.error.message,'error');return;}
   S.books=[res.data].concat(S.books);set({modal:null});toast('Buch hinzugefügt');
 }
@@ -462,6 +467,62 @@ window.importKindle=async function(){
   set({view:'library'});
 };
 
+
+// Citation formatters
+function formatCitation(b,format){
+  var author=b.author||'Unbekannt';
+  var title=b.title||'';
+  var year=b.year?'('+b.year+')':'';
+  var publisher=b.publisher||'';
+  var edition=b.edition?', '+b.edition:'';
+  var isbn=b.isbn?'. ISBN: '+b.isbn:'';
+  if(format==='apa'){
+    return author+' '+year+'. <em>'+title+'</em>'+edition+(publisher?'. '+publisher:'')+isbn+'.';
+  }else if(format==='chicago'){
+    return author+(b.year?', '+b.year:'')+'. <em>'+title+'</em>'+edition+(publisher?'. '+publisher:'')+isbn+'.';
+  }else{
+    // Harvard
+    return author+(b.year?' ('+b.year+')':'')+' <em>'+title+'</em>'+edition+(publisher?', '+publisher:'')+isbn+'.';
+  }
+}
+
+function viewLiterature(){
+  var acBooks=S.books.filter(function(b){return b.mode==='academic';});
+  if(!acBooks.length){
+    return '<div class="page-header"><div><div class="page-title">Literaturliste</div></div></div>'
+      +'<div class="content"><div class="empty"><div class="empty-icon">🎓</div>'
+      +'<div class="empty-title">Keine akademischen Bücher</div>'
+      +'<div class="empty-sub">Füge Bücher im akademischen Modus hinzu um eine Literaturliste zu erstellen.</div>'
+      +'<button class="btn btn-primary" onclick="set({modal:{type:\'addBook\'}})">Buch hinzufügen</button>'
+      +'</div></div>';
+  }
+  var format=S._citeFormat||'apa';
+  var list=acBooks.map(function(b){
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--border2);font-size:14px;line-height:1.6">'+formatCitation(b,b.cite_format||format)+'</div>';
+  }).join('');
+  var plain=acBooks.map(function(b){
+    var c=formatCitation(b,b.cite_format||format);
+    return c.replace(/<em>/g,'').replace(/<\/em>/g,'');
+  }).join('\n');
+  return '<div class="page-header"><div><div class="page-title">Literaturliste</div>'
+    +'<div class="page-subtitle">'+acBooks.length+' akademische Bücher</div></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<select onchange="set({_citeFormat:this.value})" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;background:var(--bg)">'
+    +'<option value="apa" '+(format==='apa'?'selected':'')+'>APA</option>'
+    +'<option value="chicago" '+(format==='chicago'?'selected':'')+'>Chicago</option>'
+    +'<option value="harvard" '+(format==='harvard'?'selected':'')+'>Harvard</option>'
+    +'</select>'
+    +'<button class="btn btn-primary btn-sm" onclick="copyLiterature()">📋 Kopieren</button>'
+    +'</div></div>'
+    +'<div class="content"><div class="card">'+list+'</div></div>'
+    +'<textarea id="cite-plain" style="position:absolute;left:-9999px">'+plain+'</textarea>';
+}
+
+window.copyLiterature=function(){
+  var el=document.getElementById('cite-plain');
+  if(el){el.select();document.execCommand('copy');toast('Literaturliste kopiert ✓');}
+};
+
 function render(){if(!S.user){renderAuth();return;}renderApp();}
 
 function renderAuth(){
@@ -491,6 +552,7 @@ function renderApp(){
   else if(S.view==='inbox')main=viewInbox();
   else if(S.view==='friend')main=viewFriend();
   else if(S.view==='import')main=viewImport();
+  else if(S.view==='literature')main=viewLiterature();
   else main=viewLibrary();
   var modal='';
   if(S.modal){
@@ -523,6 +585,7 @@ function renderSidebar(){
   html+='<div class="nav-item '+(S.view==='import'?'active':'')+'" onclick="set({view:\'import\'})">📥 Import</div>';
   html+='<div class="nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()">📬 Posteingang'+(S.inboxUnseen>0?'<span class="nav-badge">'+S.inboxUnseen+'</span>':'')+'</div>';
   html+='<div class="nav-item '+(S.view==='friend'?'active':'')+'" onclick="set({view:\'friend\'})">👤 Freundin</div>';
+  html+='<div class="nav-item '+(S.view==='literature'?'active':'')+'" onclick="set({view:\'literature\'})">🎓 Literaturliste</div>';
   html+='<div class="nav-section"><span>Ordner</span><button class="nav-section-btn" onclick="set({modal:{type:\'addFolder\'}})">+</button></div>';
   html+=folderItems;
   html+=(S.books.length?'<div class="nav-section"><span>Bücher</span></div>'+bookItems:'');
@@ -557,8 +620,8 @@ function viewLibrary(){
       +'<div class="book-title">'+b.title+'</div>'
       +'<div class="book-author">'+b.author+'</div>'
       +'<div class="book-meta">'
-      +'<span class="status-badge '+statusClass(b.status)+'">'+statusLabel(b.status)+'</span>'
-      +(b.rating>0?'<span class="stars">'+starsHTML(b.rating)+'</span>':'')
+      +(b.mode==='academic'?'<span class="status-badge" style="background:#e8e8f8;color:#3D3D8A">🎓 Akademisch</span>':'<span class="status-badge '+statusClass(b.status)+'">'+statusLabel(b.status)+'</span>')
+      +(b.rating>0&&b.mode!=='academic'?'<span class="stars">'+starsHTML(b.rating)+'</span>':'')
       +(folder?'<span style="font-size:11px;color:var(--accent2)">📁 '+folder.name+'</span>':'')
       +'<span style="margin-left:auto">✦ '+((S.highlights[b.id]||[]).length)+'</span>'
       +'</div></div>';
@@ -727,16 +790,35 @@ function modalAssignFolder(bookId){
 
 function modalAddBook(){
   var folderId=S.modal&&S.modal.folderId?S.modal.folderId:null;
-  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null})"><div class="modal">'
-    +'<div class="modal-header"><div class="modal-title">Buch hinzufügen</div><button class="btn-icon" onclick="set({modal:null})">✕</button></div>'
+  var isAcademic=S._bookMode==='academic';
+  return '<div class="modal-overlay" onclick="if(event.target===this)set({modal:null,_bookMode:\'private\'})"><div class="modal">'
+    +'<div class="modal-header"><div class="modal-title">Buch hinzufügen</div><button class="btn-icon" onclick="set({modal:null,_bookMode:\'private\'})">✕</button></div>'
     +'<div class="modal-body">'
+    +'<div class="tabs" style="margin-bottom:18px">'
+    +'<div class="tab '+(!isAcademic?'active':'')+'" onclick="set({_bookMode:\'private\'})">📖 Privat</div>'
+    +'<div class="tab '+(isAcademic?'active':'')+'" onclick="set({_bookMode:\'academic\'})">🎓 Akademisch</div>'
+    +'</div>'
     +'<div class="form-group"><label>Titel</label><input type="text" id="nb-title" placeholder="Buchtitel..." autofocus/></div>'
     +'<div class="form-group"><label>Autor:in</label><input type="text" id="nb-author" placeholder="Name..."/></div>'
-    +'<div class="form-group"><label>Status</label><select id="nb-status"><option value="reading">Lese ich gerade</option><option value="want">Möchte ich lesen</option><option value="done">Gelesen</option></select></div>'
-    +(S.folders.length&&!folderId?'<div class="form-group"><label>Ordner (optional)</label><select id="nb-folder"><option value="">Kein Ordner</option>'+S.folders.map(function(f){return '<option value="'+f.id+'">'+f.name+'</option>';}).join('')+'</select></div>':'')
-    +'<div class="form-group"><label>Bewertung</label><div style="display:flex;gap:8px">'+[1,2,3,4,5].map(function(n){return '<button id="star-'+n+'" class="btn btn-secondary btn-sm" onclick="pickStar('+n+')" style="font-size:18px;padding:6px 10px">☆</button>';}).join('')+'</div></div>'
-    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
-    +'<button class="btn btn-secondary" onclick="set({modal:null})">Abbrechen</button>'
+    +(isAcademic?''
+      +'<div class="form-group"><label>Status</label><select id="nb-status"><option value="reading">Lese ich gerade</option><option value="want">Möchte ich lesen</option><option value="done">Gelesen</option></select></div>'
+      +(S.folders.length&&!folderId?'<div class="form-group"><label>Ordner (optional)</label><select id="nb-folder"><option value="">Kein Ordner</option>'+S.folders.map(function(f){return '<option value="'+f.id+'">'+f.name+'</option>';}).join('')+'</select></div>':'')
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div class="form-group" style="margin-bottom:0"><label>ISBN (optional)</label><input type="text" id="nb-isbn" placeholder="978-..."/></div>'
+      +'<div class="form-group" style="margin-bottom:0"><label>Jahr (optional)</label><input type="text" id="nb-year" placeholder="2023" inputmode="numeric"/></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">'
+      +'<div class="form-group" style="margin-bottom:0"><label>Verlag (optional)</label><input type="text" id="nb-publisher" placeholder="Suhrkamp..."/></div>'
+      +'<div class="form-group" style="margin-bottom:0"><label>Auflage (optional)</label><input type="text" id="nb-edition" placeholder="3. Aufl."/></div>'
+      +'</div>'
+      +'<div class="form-group" style="margin-top:10px"><label>Zitierformat</label><select id="nb-cite"><option value="apa">APA</option><option value="chicago">Chicago</option><option value="harvard">Harvard</option></select></div>'
+      :
+      '<div class="form-group"><label>Status</label><select id="nb-status"><option value="reading">Lese ich gerade</option><option value="want">Möchte ich lesen</option><option value="done">Gelesen</option></select></div>'
+      +(S.folders.length&&!folderId?'<div class="form-group"><label>Ordner (optional)</label><select id="nb-folder"><option value="">Kein Ordner</option>'+S.folders.map(function(f){return '<option value="'+f.id+'">'+f.name+'</option>';}).join('')+'</select></div>':'')
+      +'<div class="form-group"><label>Bewertung</label><div style="display:flex;gap:8px">'+[1,2,3,4,5].map(function(n){return '<button id="star-'+n+'" class="btn btn-secondary btn-sm" onclick="pickStar('+n+')" style="font-size:18px;padding:6px 10px">☆</button>';}).join('')+'</div></div>'
+    )
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">'
+    +'<button class="btn btn-secondary" onclick="set({modal:null,_bookMode:\'private\'})">Abbrechen</button>'
     +'<button class="btn btn-primary" onclick="submitAddBook(\''+(folderId||'')+'\')">Hinzufügen</button>'
     +'</div></div></div></div>';
 }
@@ -827,13 +909,21 @@ window.submitAddFolder=function(){
   addFolder(name,S.selectedColor);S.selectedColor=FOLDER_COLORS[0];
 };
 window.submitAddBook=function(folderId){
-  var t=document.getElementById('nb-title').value.trim();
-  var a=document.getElementById('nb-author').value.trim();
-  var s=document.getElementById('nb-status').value||'reading';
+  var t=(document.getElementById('nb-title')||{value:''}).value.trim();
+  var a=(document.getElementById('nb-author')||{value:''}).value.trim();
+  var statusEl=document.getElementById('nb-status');
+  var s=statusEl?statusEl.value:'reading';
   var folderEl=document.getElementById('nb-folder');
   var f=folderId||(folderEl?folderEl.value:'')||null;
   if(!t||!a){toast('Titel und Autor angeben','error');return;}
-  addBook(t,a,s,S.selectedStars,f||null);S.selectedStars=0;
+  var mode=S._bookMode||'private';
+  var isbn=(document.getElementById('nb-isbn')||{value:''}).value.trim()||null;
+  var year=(document.getElementById('nb-year')||{value:''}).value.trim()||null;
+  var publisher=(document.getElementById('nb-publisher')||{value:''}).value.trim()||null;
+  var edition=(document.getElementById('nb-edition')||{value:''}).value.trim()||null;
+  var cite=(document.getElementById('nb-cite')||{value:'apa'}).value||'apa';
+  addBook(t,a,s,S.selectedStars,f||null,mode,isbn,year?parseInt(year):null,publisher,edition,cite);
+  S.selectedStars=0;S._bookMode='private';
 };
 window.submitEditBook=function(id){
   var s=document.getElementById('eb-status').value;
