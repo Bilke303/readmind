@@ -244,17 +244,23 @@ async function loadFriends(){
 }
 
 async function sendFriendRequest(email){
-  // Find user by email
-  var res=await sb.from('profiles').select('*').eq('email',email.trim().toLowerCase()).single();
-  if(res.error||!res.data){toast('Kein Nutzer mit dieser E-Mail gefunden','error');return;}
+  var emailClean=email.trim().toLowerCase();
+  // Find user by email - try both email formats
+  var res=await sb.from('profiles').select('*').ilike('email',emailClean).maybeSingle();
+  if(res.error){toast('Fehler: '+res.error.message,'error');return;}
+  if(!res.data){
+    // Also try auth users directly
+    toast('Kein Readmind-Konto mit dieser E-Mail gefunden','error');
+    return;
+  }
   if(res.data.id===S.user.id){toast('Das bist du selbst','error');return;}
-  // Check if already friends or request pending
+  // Check if already friends or request pending - use maybeSingle to avoid error on 0 rows
   var existing=await sb.from('friendships').select('*')
-    .or('and(requester_id.eq.'+S.user.id+',addressee_id.eq.'+res.data.id+'),and(requester_id.eq.'+res.data.id+',addressee_id.eq.'+S.user.id+')').single();
-  if(existing.data){toast('Anfrage bereits gesendet oder bereits befreundet','error');return;}
+    .or('and(requester_id.eq.'+S.user.id+',addressee_id.eq.'+res.data.id+'),and(requester_id.eq.'+res.data.id+',addressee_id.eq.'+S.user.id+')').maybeSingle();
+  if(existing.data){toast('Anfrage bereits gesendet oder ihr seid bereits befreundet','error');return;}
   var ins=await sb.from('friendships').insert({requester_id:S.user.id,addressee_id:res.data.id,status:'pending'});
   if(ins.error){toast(ins.error.message,'error');return;}
-  toast('Freundschaftsanfrage gesendet an '+res.data.display_name+' ✓');
+  toast('Freundschaftsanfrage gesendet an '+(res.data.display_name||emailClean)+' ✓');
   set({modal:null});
 }
 
