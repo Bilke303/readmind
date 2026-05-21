@@ -843,12 +843,14 @@ function viewBook(b){
 
 function viewInbox(){
   var items=S.inbox.map(function(i){
-    return '<div class="inbox-item '+(i.seen?'':'unseen')+'" onclick="markSeen(\''+i.id+'\')">'
-      +'<div class="inbox-from">Von '+(i.profiles&&i.profiles.display_name?i.profiles.display_name:'Freunde')+(i.seen?'':' · <span style="color:var(--accent2)">neu</span>')+'</div>'
-      +'<div class="inbox-book">📚 '+(i.highlights&&i.highlights.books?i.highlights.books.title:'')+'</div>'
-      +'<div class="inbox-text">'+(i.highlights?i.highlights.text:'')+'</div>'
-      +(i.highlights&&i.highlights.page?'<div style="font-size:11px;color:var(--text3);margin-top:6px">S. '+i.highlights.page+'</div>':'')
-      +'</div>';
+    var hl=i.highlights||{};
+    var book=(hl&&hl.books)||{};
+    var sender=i.profiles||{};
+    var text=hl.text||'';
+    var title=book.title||'';
+    var page=hl.page||'';
+    var name=sender.display_name||'Freund:in';
+    return '<div class="inbox-item '+(i.seen?'':'unseen')+'" onclick="markSeen(\''+i.id+'\')">'      +'<div class="inbox-from">Von '+name+(i.seen?'':' · <span style="color:var(--accent2)">neu</span>')+'</div>'      +(title?'<div class="inbox-book">📚 '+title+'</div>':'')      +(text?'<div class="inbox-text">'+text+'</div>':'')      +(page?'<div style="font-size:11px;color:var(--text3);margin-top:6px">S. '+page+'</div>':'')      +'</div>';
   }).join('');
   return '<div class="page-header"><div><div class="page-title">Posteingang</div><div class="page-subtitle">'+S.inbox.length+' Highlights · '+S.inboxUnseen+' ungelesen</div></div></div>'
     +'<div class="content">'+(S.inbox.length?items:'<div class="empty"><div class="empty-icon">📬</div><div class="empty-title">Posteingang leer</div><div class="empty-sub">Wenn deine Freundin ein Highlight teilt, erscheint es hier.</div></div>')+'</div>';
