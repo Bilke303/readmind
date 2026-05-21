@@ -334,6 +334,201 @@ function statusClass(s){return 'status-'+(s==='reading'?'reading':s==='done'?'do
 function totalHL(){return S.books.reduce(function(s,b){return s+(S.highlights[b.id]||[]).length;},0);}
 function folderBooks(fid){return S.books.filter(function(b){return b.folder_id===fid;});}
 
+function parseKindleClippings(text){
+  var books={};
+  var entries=text.split('==========');
+  entries.forEach(function(entry){
+    var lines=entry.trim().split('\n').filter(function(l){return l.trim();});
+    if(lines.length<3)return;
+    var titleLine=lines[0].trim();
+    // Extract title and author: "Title (Author)" or just "Title"
+    var title=titleLine,author='Unbekannt';
+    var match=titleLine.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    if(match){title=match[1].trim();author=match[2].trim();}
+    // Find highlight text (skip metadata line)
+    var textLines=lines.slice(2).join(' ').trim();
+    if(!textLines||textLines.length<5)return;
+    // Extract page if available
+    var page='';
+    var metaLine=lines[1]||'';
+    var pageMatch=metaLine.match(/[Ss]eite\s+(\d+)|[Pp]age\s+(\d+)|[Ll]ocation\s+(\d+)/);
+    if(pageMatch)page=pageMatch[1]||pageMatch[2]||pageMatch[3]||'';
+    if(!books[title])books[title]={title:title,author:author,highlights:[]};
+    books[title].highlights.push({text:textLines,page:page});
+  });
+  return Object.values(books);
+}
+
+function viewImport(){
+  var preview=S._kindlePreview||null;
+  var pasteMode=S._importTab||'kindle';
+  var html='<div class="page-header"><div><div class="page-title">Import</div><div class="page-subtitle">Highlights aus Kindle importieren</div></div></div>'
+    +'<div class="content">'
+    +'<div class="tabs" style="margin-bottom:20px">'
+    +'<div class="tab '+(pasteMode==='kindle'?'active':'')+'" onclick="set({_importTab:'kindle'})">📂 My Clippings</div>'
+    +'<div class="tab '+(pasteMode==='paste'?'active':'')+'" onclick="set({_importTab:'paste'})">📋 Kopieren & Einfügen</div>'
+    +'</div>';
+
+  if(pasteMode==='paste'){
+    var books=S.books;
+    html+='<div class="card" style="margin-bottom:16px">'
+      +'<div class="section-title" style="margin-bottom:8px">Aus Kindle App kopieren</div>'
+      +'<div style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.6">'
+      +'In der Kindle App: Text markieren → <strong>Kopieren</strong> → hier einfügen. Funktioniert auch mit mehreren Highlights gleichzeitig.'
+      +'</div>'
+      +'<div class="form-group"><label>Text einfügen</label>'
+      +'<textarea id="paste-text" placeholder="Hier den kopierten Text aus Kindle einfügen..." rows="6" style="min-height:140px"></textarea>'
+      +'</div>'
+      +'<div class="form-group"><label>Welchem Buch zuordnen?</label>'
+      +'<select id="paste-book" onchange="toggleNewBookFields()">'
+      +'<option value="">— Buch auswählen —</option>'
+      +'<option value="__new__">+ Neues Buch anlegen</option>'
+      +books.map(function(b){return '<option value="'+b.id+'">'+b.title+' — '+b.author+'</option>';}).join('')
+      +'</select></div>'
+      +'<div id="new-book-fields" style="display:none">'
+      +'<div class="form-group"><label>Buchtitel</label><input type="text" id="paste-book-title" placeholder="Titel..."/></div>'
+      +'<div class="form-group"><label>Autor:in</label><input type="text" id="paste-book-author" placeholder="Autor..."/></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
+      +'<button class="btn btn-primary" onclick="submitPasteImport()">Importieren</button>'
+      +'</div></div>'
+      +'<div class="card" style="background:var(--bg2);border:none">'
+      +'<div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:8px">So geht's auf dem iPhone</div>'
+      +'<div style="font-size:13px;color:var(--text3);line-height:1.8">'
+      +'<div>1. Kindle App öffnen → Buch aufschlagen</div>'
+      +'<div>2. Gewünschten Text gedrückt halten → markieren</div>'
+      +'<div>3. <strong>Kopieren</strong> antippen</div>'
+      +'<div>4. Zurück zu Readmind → hier einfügen → Buch auswählen</div>'
+      +'</div></div>';
+  } else {
+    if(!preview){
+      html+='<div class="card" style="margin-bottom:16px">'
+        +'<div class="section-title" style="margin-bottom:12px">My Clippings.txt</div>'
+        +'<div style="font-size:14px;color:var(--text2);line-height:1.8">'
+        +'<div style="margin-bottom:8px">1. Kindle per USB anschließen</div>'
+        +'<div style="margin-bottom:8px">2. Datei: <code style="background:var(--bg2);padding:2px 6px;border-radius:4px">Kindle/documents/My Clippings.txt</code></div>'
+        +'<div>3. Hier hochladen</div>'
+        +'</div></div>'
+        +'<div class="card">'
+        +'<div class="photo-drop" onclick="document.getElementById('kindle-input').click()" style="margin-bottom:0">'
+        +'<input type="file" id="kindle-input" accept=".txt" onchange="handleKindleFile(event)">'
+        +'<div style="font-size:32px;margin-bottom:8px">📚</div>'
+        +'<div style="font-size:14px;color:var(--text2)">My Clippings.txt hochladen</div>'
+        +'</div></div>';
+    } else {
+      var totalHL=preview.reduce(function(s,b){return s+b.highlights.length;},0);
+      html+='<div style="background:var(--accent-light);border:1px solid rgba(45,74,62,.15);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">'
+        +'<div><div style="font-size:14px;font-weight:500;color:var(--accent)">'+preview.length+' Bücher · '+totalHL+' Highlights erkannt</div>'
+        +'<div style="font-size:13px;color:var(--text3);margin-top:3px">Überprüfe die Vorschau und importiere alles</div></div>'
+        +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-secondary btn-sm" onclick="set({_kindlePreview:null})">Neu laden</button>'
+        +'<button class="btn btn-primary" onclick="importKindle()">Alle importieren</button>'
+        +'</div></div>';
+      preview.forEach(function(b){
+        html+='<div class="card" style="margin-bottom:12px">'
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
+          +'<div><div class="book-title" style="font-size:15px">'+b.title+'</div>'
+          +'<div class="book-author">'+b.author+'</div></div>'
+          +'<span class="tag">'+b.highlights.length+' Highlights</span>'
+          +'</div>'
+          +b.highlights.slice(0,3).map(function(h){
+            return '<div style="font-size:13px;font-family:var(--serif);font-style:italic;border-left:2px solid var(--accent2);padding-left:10px;margin-bottom:8px;color:var(--text2)">'+h.text.substring(0,120)+(h.text.length>120?'...':'')+'</div>';
+          }).join('')
+          +(b.highlights.length>3?'<div style="font-size:12px;color:var(--text3);margin-top:4px">+ '+(b.highlights.length-3)+' weitere</div>':'')
+          +'</div>';
+      });
+    }
+  }
+  html+='</div>';
+  return html;
+}
+
+window.submitPasteImport=async function(){
+  var text=(document.getElementById('paste-text')||{value:''}).value.trim();
+  var bookSel=(document.getElementById('paste-book')||{value:''}).value;
+  if(!text){toast('Bitte Text einfügen','error');return;}
+  if(!bookSel){toast('Bitte Buch auswählen','error');return;}
+  var bookId;
+  if(bookSel==='__new__'){
+    var t=(document.getElementById('paste-book-title')||{value:''}).value.trim();
+    var a=(document.getElementById('paste-book-author')||{value:''}).value.trim();
+    if(!t||!a){toast('Titel und Autor eingeben','error');return;}
+    var color=BOOK_COLORS[S.books.length%BOOK_COLORS.length];
+    var res=await sb.from('books').insert({user_id:S.user.id,title:t,author:a,color:color,status:'reading',rating:0}).select().single();
+    if(res.error){toast(res.error.message,'error');return;}
+    S.books=[res.data].concat(S.books);
+    bookId=res.data.id;
+  }else{
+    bookId=bookSel;
+  }
+  // Split text into individual highlights (split by double newline or long dashes)
+  var lines=text.split(/\n{2,}|—{3,}/).map(function(l){return l.trim();}).filter(function(l){return l.length>5;});
+  if(!lines.length)lines=[text];
+  var imported=0;
+  for(var i=0;i<lines.length;i++){
+    var hl=lines[i];
+    if(!hl||hl.length<5)continue;
+    var res=await sb.from('highlights').insert({book_id:bookId,user_id:S.user.id,text:hl,note:null,page:null,image_url:null}).select().single();
+    if(!res.error){imported++;if(!S.highlights[bookId])S.highlights[bookId]=[];S.highlights[bookId]=[res.data].concat(S.highlights[bookId]);}
+  }
+  set({matrix:null});
+  toast(imported+' Highlight'+(imported!==1?'s':'')+' importiert');
+  document.getElementById('paste-text').value='';
+  document.getElementById('paste-book').value='';
+};
+
+window.toggleNewBookFields=function(){
+  var sel=document.getElementById('paste-book');
+  var fields=document.getElementById('new-book-fields');
+  if(sel&&fields)fields.style.display=sel.value==='__new__'?'block':'none';
+};
+
+window.handleKindleFile=function(event){
+  var file=event.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var text=e.target.result;
+    var preview=parseKindleClippings(text);
+    if(!preview.length){toast('Keine Highlights gefunden. Ist es eine My Clippings.txt?','error');return;}
+    set({_kindlePreview:preview});
+    toast(preview.length+' Bücher erkannt');
+  };
+  reader.readAsText(file,'UTF-8');
+};
+
+window.importKindle=async function(){
+  var preview=S._kindlePreview;if(!preview)return;
+  var btn=document.querySelector('.btn-primary[onclick="importKindle()"]');
+  if(btn){btn.disabled=true;btn.textContent='Importiere...';}
+  var imported=0,skipped=0;
+  for(var i=0;i<preview.length;i++){
+    var b=preview[i];
+    // Check if book already exists
+    var existing=S.books.find(function(x){return x.title.toLowerCase()===b.title.toLowerCase();});
+    var bookId;
+    if(existing){
+      bookId=existing.id;
+    }else{
+      var color=BOOK_COLORS[(S.books.length+i)%BOOK_COLORS.length];
+      var res=await sb.from('books').insert({user_id:S.user.id,title:b.title,author:b.author,color:color,status:'done',rating:0}).select().single();
+      if(res.error){skipped++;continue;}
+      S.books=[res.data].concat(S.books);
+      bookId=res.data.id;
+    }
+    // Import highlights
+    for(var j=0;j<b.highlights.length;j++){
+      var h=b.highlights[j];
+      if(!h.text||h.text.length<5){skipped++;continue;}
+      var hr=await sb.from('highlights').insert({book_id:bookId,user_id:S.user.id,text:h.text,page:h.page||null,note:null,image_url:null}).select().single();
+      if(!hr.error)imported++;else skipped++;
+    }
+  }
+  set({_kindlePreview:null,matrix:null});
+  await loadAll();
+  toast(imported+' Highlights importiert'+(skipped>0?' ('+skipped+' übersprungen)':''));
+  set({view:'library'});
+};
+
 function render(){if(!S.user){renderAuth();return;}renderApp();}
 
 function renderAuth(){
@@ -362,6 +557,7 @@ function renderApp(){
   else if(S.view==='matrix')main=viewMatrix();
   else if(S.view==='inbox')main=viewInbox();
   else if(S.view==='friend')main=viewFriend();
+  else if(S.view==='import')main=viewImport();
   else main=viewLibrary();
   var modal='';
   if(S.modal){
@@ -398,6 +594,7 @@ function renderSidebar(){
     +'<div class="nav-item '+(S.view==='library'&&!S.selectedBook?'active':'')+'" onclick="set({view:\'library\',selectedBook:null,selectedFolder:null})">📚 Bibliothek</div>'
     +'<div class="nav-item '+(S.view==='folders'||S.view==='folder'?'active':'')+'" onclick="set({view:\'folders\',selectedBook:null})">📁 Ordner</div>'
     +'<div class="nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})">🧠 Matrix</div>'
+    +'<div class="nav-item '+(S.view==\'import\'?\'active\':\'\')+\'" onclick="set({view:\'import\'})">📥 Import</div>'
     +'<div class="nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()">📬 Posteingang'+(S.inboxUnseen>0?'<span class="nav-badge">'+S.inboxUnseen+'</span>':'')+'</div>'
     +'<div class="nav-item '+(S.view==='friend'?'active':'')+'" onclick="set({view:\'friend\'})">👤 Freundin</div>'
     +'<div class="nav-section"><span>Ordner</span><button class="nav-section-btn" onclick="set({modal:{type:\'addFolder\'}})">+</button></div>'
@@ -417,7 +614,8 @@ function renderBottomNav(){
   return '<div class="bottom-nav">'
     +'<div class="bottom-nav-item '+(S.view==='library'?'active':'')+'" onclick="set({view:\'library\',selectedBook:null})"><span class="bottom-nav-icon">📚</span><span>Bücher</span></div>'
     +'<div class="bottom-nav-item '+(S.view==='folders'||S.view==='folder'?'active':'')+'" onclick="set({view:\'folders\'})"><span class="bottom-nav-icon">📁</span><span>Ordner</span></div>'
-    +'<div class="bottom-nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})"><span class="bottom-nav-icon">🧠</span><span>Matrix</span></div>'
+    +'<div class="bottom-nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})"><span class="bottom-nav-icon">🧠</span><span>Matrix</span></div>
+    +'<div class="bottom-nav-item '+(S.view==="import"?"active":"")+' " onclick="set({view:\'import\'})" ><span class="bottom-nav-icon">📥</span><span>Import</span></div>''
     +'<div class="bottom-nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()" style="position:relative"><span class="bottom-nav-icon">📬</span>'+(S.inboxUnseen>0?'<span class="bottom-badge">'+S.inboxUnseen+'</span>':'')+'<span>Eingang</span></div>'
     +'<div class="bottom-nav-item" onclick="set({modal:{type:\'settings\'}})"><span class="bottom-nav-icon">⚙️</span><span>More</span></div>'
     +'</div>';
@@ -634,9 +832,18 @@ function modalAddHighlight(bookId){
     +'<div class="tabs">'
     +'<div class="tab '+(S.photoTab==='text'?'active':'')+'" onclick="set({photoTab:\'text\'})">✍️ Text</div>'
     +'<div class="tab '+(S.photoTab==='photo'?'active':'')+'" onclick="set({photoTab:\'photo\'})">📷 Foto</div>'
+    +'<div class="tab \'+(S.photoTab===\'paste\'?\'active\':\'\')+\'" onclick="set({photoTab:\'paste\'})">📋 Einfügen</div>'
     +'</div>'
     +(S.photoTab==='text'
       ?'<div class="form-group"><label>Markierte Stelle</label><textarea id="hl-text" placeholder="Text eingeben oder einfügen..."></textarea></div>'
+      :S.photoTab==='paste'
+      ?'<div class="form-group"><label>Text einfügen — aus Kindle, Artikeln, PDFs</label>'
+        +'<textarea id="paste-text" placeholder="Hier einfügen... Die KI erkennt automatisch einzelne Highlights und trennt sie auf." style="min-height:150px"></textarea></div>'
+        +'<div id="paste-preview" style="display:none"></div>'
+        +'<div style="display:flex;gap:8px;margin-bottom:4px">'
+        +'<button class="btn btn-secondary" style="flex:1;justify-content:center" onclick="splitHighlights(\'\')">🧠 KI aufteilen</button>'
+        +'<button class="btn btn-secondary btn-sm" onclick="usePasteAsOne()">Als ein Highlight</button>'
+        +'</div>'
       :'<div class="photo-drop" onclick="document.getElementById(\'photo-input\').click()">'
         +'<input type="file" id="photo-input" accept="image/*" onchange="handlePhoto(event,\''+bookId+'\')">'
         +'<div id="photo-preview-area"><div style="font-size:32px;margin-bottom:8px">📸</div>'
@@ -701,13 +908,105 @@ window.submitEditBook=function(id){
   updateBook(id,{status:s,rating:S.selectedStars});S.selectedStars=0;
 };
 window.submitHighlight=function(bookId){
-  var text=(document.getElementById('hl-text')||{value:''}).value.trim();
+  // Check if we have split highlights to save
+  if(S._splitHighlights&&S._splitHighlights.length>0&&S.photoTab==='paste'){
+    saveSplitHighlights(bookId);return;
+  }
+  var text='';
+  if(S.photoTab==='paste'){
+    text=(document.getElementById('paste-text')||{value:''}).value.trim();
+  }else{
+    text=(document.getElementById('hl-text')||{value:''}).value.trim();
+  }
   var note=(document.getElementById('hl-note')||{value:''}).value.trim();
   var page=(document.getElementById('hl-page')||{value:''}).value.trim();
   var imagePath=S._pendingImagePath||null;
   if(!text&&!imagePath){toast('Bitte Text eingeben oder Foto hochladen','error');return;}
   addHighlight(bookId,text||'[Foto-Highlight]',note||null,page||null,imagePath);
 };
+
+window.usePasteAsOne=function(){
+  var text=(document.getElementById('paste-text')||{value:''}).value.trim();
+  if(!text){toast('Bitte Text einfügen','error');return;}
+  var hlText=document.getElementById('hl-text');
+  // Switch to text tab with the pasted content
+  S.photoTab='text';
+  S._splitHighlights=null;
+  render();
+  setTimeout(function(){
+    var el=document.getElementById('hl-text');
+    if(el)el.value=text;
+  },50);
+};
+
+window.splitHighlights=async function(bookId){
+  var text=(document.getElementById('paste-text')||{value:''}).value.trim();
+  if(!text){toast('Bitte Text einfügen','error');return;}
+  if(!S.anthropicKey){toast('API Key fehlt — bitte in Einstellungen eintragen','error');return;}
+  var btn=document.querySelector('[onclick="splitHighlights(''+bookId+'')"]');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Analysiere...';}
+  try{
+    var r=await fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      apiKey:S.anthropicKey,
+      model:'claude-sonnet-4-20250514',
+      max_tokens:2000,
+      messages:[{role:'user',content:'Teile diesen Text in einzelne sinnvolle Highlights auf. Jedes Highlight sollte ein eigenständiger Gedanke, Satz oder Abschnitt sein. Gib NUR ein JSON-Array zurück, keine Erklärungen:\n["Highlight 1","Highlight 2",...]\n\nText:\n'+text}]
+    })});
+    var d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    var raw=(d.content&&d.content[0]?d.content[0].text:'').replace(/```json|```/g,'').trim();
+    var splits=JSON.parse(raw);
+    if(!Array.isArray(splits)||splits.length===0)throw new Error('Keine Highlights erkannt');
+    S._splitHighlights=splits;
+    // Show preview
+    var preview=document.getElementById('paste-preview');
+    if(preview){
+      preview.style.display='block';
+      preview.innerHTML='<div style="font-size:13px;font-weight:500;color:var(--accent2);margin-bottom:10px">'+splits.length+' Highlights erkannt — klicke zum Entfernen:</div>'
+        +splits.map(function(h,i){
+          return '<div id="split-'+i+'" style="font-size:13px;font-family:var(--serif);font-style:italic;border-left:2px solid var(--accent2);padding:8px 12px;margin-bottom:8px;background:var(--accent-light);border-radius:0 var(--radius-sm) var(--radius-sm) 0;cursor:pointer;position:relative" onclick="removeSplit('+i+')">'
+            +h+'<span style="position:absolute;right:8px;top:6px;font-size:16px;font-style:normal;color:var(--text3)">×</span></div>';
+        }).join('');
+    }
+    // Update save button
+    var saveBtn=document.getElementById('hl-save-btn');
+    if(saveBtn)saveBtn.textContent='Alle '+splits.length+' speichern';
+  }catch(e){
+    toast('Fehler: '+e.message,'error');
+  }
+  if(btn){btn.disabled=false;btn.textContent='🧠 KI aufteilen';}
+};
+
+window.removeSplit=function(idx){
+  if(!S._splitHighlights)return;
+  S._splitHighlights=S._splitHighlights.filter(function(h,i){return i!==idx;});
+  var el=document.getElementById('split-'+idx);
+  if(el)el.style.display='none';
+  var saveBtn=document.getElementById('hl-save-btn');
+  if(saveBtn)saveBtn.textContent='Alle '+S._splitHighlights.length+' speichern';
+};
+
+async function saveSplitHighlights(bookId){
+  var splits=S._splitHighlights;
+  if(!splits||!splits.length)return;
+  var note=(document.getElementById('hl-note')||{value:''}).value.trim();
+  var page=(document.getElementById('hl-page')||{value:''}).value.trim();
+  var btn=document.getElementById('hl-save-btn');
+  if(btn){btn.disabled=true;btn.textContent='Speichere...';}
+  var saved=0;
+  for(var i=0;i<splits.length;i++){
+    if(!splits[i]||splits[i].length<5)continue;
+    var res=await sb.from('highlights').insert({book_id:bookId,user_id:S.user.id,text:splits[i],note:note||null,page:page||null,image_url:null}).select().single();
+    if(!res.error){
+      var existing=S.highlights[bookId]||[];
+      S.highlights[bookId]=[res.data].concat(existing);
+      saved++;
+    }
+  }
+  S._splitHighlights=null;
+  set({modal:null,matrix:null,photoTab:'text'});
+  toast(saved+' Highlights gespeichert');
+}
 window.handlePhoto=async function(event,bookId){
   var file=event.target.files[0];if(!file)return;
   var objectUrl=URL.createObjectURL(file);
