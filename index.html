@@ -207,7 +207,7 @@ async function signOut(){
 async function loadAll(){
   var br=await sb.from('books').select('*').order('added_at',{ascending:false});
   var fr=await sb.from('folders').select('*').order('created_at',{ascending:true});
-  S.books=br.data||[];S.folders=fr.data||[];
+  S.books=br.data||[];S.folders=fr.data||[];render();
 }
 async function loadHighlights(bookId){
   var res=await sb.from('highlights').select('*').eq('book_id',bookId).order('added_at',{ascending:false});
@@ -503,7 +503,7 @@ function viewBook(b){
   var hlHTML=hls.map(function(h){
     var imgUrl=h.image_url?sb.storage.from('highlights').getPublicUrl(h.image_url).data.publicUrl:null;
     return '<div class="highlight-item">'
-      +(imgUrl?'<img src="'+imgUrl+'" class="highlight-img"/>':'')
+      +(imgUrl?'<a href="'+imgUrl+'" target="_blank" style="display:block;margin-bottom:10px"><img src="'+imgUrl+'" class="highlight-img" style="cursor:zoom-in"/></a>':'')
       +'<div class="highlight-text">'+h.text+'</div>'
       +(h.note?'<div class="highlight-note">💭 '+h.note+'</div>':'')
       +'<div class="highlight-meta">'
