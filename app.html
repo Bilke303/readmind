@@ -171,7 +171,7 @@ const FOLDER_COLORS=['#2D4A3E','#4a7c66','#8B7355','#6B5B7B','#4A6B8A','#7A5C4A'
 const BOOK_COLORS=['#2D4A3E','#4a7c66','#8B7355','#6B5B7B','#4A6B8A','#7A5C4A','#3D6B5A','#B5614A'];
 const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
-let S={user:null,profile:null,view:'library',books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedFolder:null,selectedBook:null,matrix:null,matrixLoading:false,modal:null,authTab:'login',anthropicKey:localStorage.getItem(ANT_KEY)||'',allProfiles:[],friends:[],friendRequests:[],photoTab:'text',selectedColor:FOLDER_COLORS[0],selectedStars:0,_pendingImagePath:null,_bookMode:'private',_citeFormat:'apa'};
+let S={user:null,profile:null,view:'library',books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedFolder:null,selectedBook:null,matrix:null,matrixLoading:false,modal:null,authTab:'login',anthropicKey:localStorage.getItem(ANT_KEY)||'',allProfiles:[],friends:[],friendRequests:[],photoTab:'text',selectedColor:FOLDER_COLORS[0],selectedStars:0,_pendingImagePath:null,_bookMode:'private',_citeFormat:'apa',_importBookId:null,_importBookTitle:null};
 
 function set(p){
   // Always preserve anthropicKey from localStorage
@@ -425,7 +425,13 @@ function parseKindleClippings(text){
 
 function viewImport(){
   var preview=S._kindlePreview||null;
-  var html='<div class="page-header"><div><div class="page-title">Import</div><div class="page-subtitle">Highlights importieren</div></div></div>'
+  var bookId=S._importBookId||null;
+  var bookTitle=S._importBookTitle||null;
+  var html='<div class="page-header"><div>'
+    +'<div style="font-size:13px;color:var(--text3);margin-bottom:4px;cursor:pointer" onclick="set({view:\'book\',selectedBook:bookId})">← '+(bookTitle||'Bibliothek')+'</div>'
+    +'<div class="page-title">Kindle Import</div>'
+    +'<div class="page-subtitle">'+(bookTitle?'Highlights importieren für: '+bookTitle:'Highlights importieren')+'</div>'
+    +'</div></div>'
     +'<div class="content">';
 
   if(!preview){
@@ -636,7 +642,7 @@ function renderSidebar(){
   html+='<div class="nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})">🧠 Matrix</div>';
   html+='<div class="nav-item '+(S.view==='import'?'active':'')+'" onclick="set({view:\'import\'})">📥 Import</div>';
   html+='<div class="nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()">📬 Posteingang'+(S.inboxUnseen>0?'<span class="nav-badge">'+S.inboxUnseen+'</span>':'')+'</div>';
-  html+='<div class="nav-item '+(S.view==='friend'?'active':'')+'" onclick="set({view:\'friend\'})">👤 Freundin</div>';
+  html+='<div class="nav-item '+(S.view==='friend'?'active':'')+'" onclick="set({view:\'friend\'})">👤 Freunde</div>';
   html+='<div class="nav-item '+(S.view==='literature'?'active':'')+'" onclick="set({view:\'literature\'})">🎓 Literaturliste</div>';
   html+='<div class="nav-section"><span>Ordner</span><button class="nav-section-btn" onclick="set({modal:{type:\'addFolder\'}})">+</button></div>';
   html+=folderItems;
@@ -760,6 +766,7 @@ function viewBook(b){
     +'<div style="display:flex;gap:8px">'
     +'<button class="btn btn-secondary btn-sm" onclick="set({modal:{type:\'assignFolder\',bookId:\''+b.id+'\'}})">📁</button>'
     +'<button class="btn btn-secondary btn-sm" onclick="set({modal:{type:\'editBook\',book:S.books.find(function(x){return x.id===\''+b.id+'\';})}})">✏️</button>'
+    +'<button class="btn btn-secondary btn-sm" onclick="set({view:\'import\',_importBookId:\''+b.id+'\',_importBookTitle:\''+b.title+'\')">📥 Import</button>'
     +'<button class="btn btn-primary" onclick="set({modal:{type:\'addHighlight\',bookId:\''+b.id+'\'}})">+ Highlight</button>'
     +'</div></div>'
     +'<div class="content"><div class="card">'
@@ -771,7 +778,7 @@ function viewBook(b){
 function viewInbox(){
   var items=S.inbox.map(function(i){
     return '<div class="inbox-item '+(i.seen?'':'unseen')+'" onclick="markSeen(\''+i.id+'\')">'
-      +'<div class="inbox-from">Von '+(i.profiles&&i.profiles.display_name?i.profiles.display_name:'Freundin')+(i.seen?'':' · <span style="color:var(--accent2)">neu</span>')+'</div>'
+      +'<div class="inbox-from">Von '+(i.profiles&&i.profiles.display_name?i.profiles.display_name:'Freunde')+(i.seen?'':' · <span style="color:var(--accent2)">neu</span>')+'</div>'
       +'<div class="inbox-book">📚 '+(i.highlights&&i.highlights.books?i.highlights.books.title:'')+'</div>'
       +'<div class="inbox-text">'+(i.highlights?i.highlights.text:'')+'</div>'
       +(i.highlights&&i.highlights.page?'<div style="font-size:11px;color:var(--text3);margin-top:6px">S. '+i.highlights.page+'</div>':'')
