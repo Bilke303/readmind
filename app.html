@@ -648,7 +648,7 @@ function renderSidebar(){
   html+='<div class="nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})">🧠 Matrix</div>';
   html+='<div class="nav-item '+(S.view==='import'?'active':'')+'" onclick="set({view:\'import\'})">📥 Import</div>';
   html+='<div class="nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()">📬 Posteingang'+(S.inboxUnseen>0?'<span class="nav-badge">'+S.inboxUnseen+'</span>':'')+'</div>';
-  html+='<div class="nav-item '+(S.view==='friend'?'active':'')+'" onclick="set({view:\'friend\'})">👤 Freunde</div>';
+  html+='<div class="nav-item '+(S.view==='friend'?'active':'')+'" onclick="openFriends()">👤 Freunde'+(S.friendRequests&&S.friendRequests.length>0?'<span class="nav-badge">'+S.friendRequests.length+'</span>':'')+'</div>';
   html+='<div class="nav-item '+(S.view==='literature'?'active':'')+'" onclick="set({view:\'literature\'})">🎓 Literaturliste</div>';
   html+='<div class="nav-section"><span>Ordner</span><button class="nav-section-btn" onclick="set({modal:{type:\'addFolder\'}})">+</button></div>';
   html+=folderItems;
@@ -669,8 +669,8 @@ function renderBottomNav(){
   html+='<div class="bottom-nav-item '+(S.view==='library'?'active':'')+'" onclick="set({view:\'library\',selectedBook:null})"><span class="bottom-nav-icon">📚</span><span>Bücher</span></div>';
   html+='<div class="bottom-nav-item '+(S.view==='folders'||S.view==='folder'?'active':'')+'" onclick="set({view:\'folders\'})"><span class="bottom-nav-icon">📁</span><span>Ordner</span></div>';
   html+='<div class="bottom-nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})"><span class="bottom-nav-icon">🧠</span><span>Matrix</span></div>';
-  html+='<div class="bottom-nav-item '+(S.view==='import'?'active':'')+'" onclick="set({view:\'import\'})"><span class="bottom-nav-icon">📥</span><span>Import</span></div>';
   html+='<div class="bottom-nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()" style="position:relative"><span class="bottom-nav-icon">📬</span>'+(S.inboxUnseen>0?'<span class="bottom-badge">'+S.inboxUnseen+'</span>':'')+'<span>Eingang</span></div>';
+  html+='<div class="bottom-nav-item '+(S.view==='friend'?'active':'')+'" onclick="openFriends()" style="position:relative"><span class="bottom-nav-icon">👤</span>'+(S.friendRequests&&S.friendRequests.length>0?'<span class="bottom-badge">'+S.friendRequests.length+'</span>':'')+'<span>Freunde</span></div>';
   html+='<div class="bottom-nav-item" onclick="set({modal:{type:\'settings\'}})"><span class="bottom-nav-icon">⚙️</span><span>More</span></div>';
   html+='</div>';
   return html;
@@ -1173,6 +1173,7 @@ window.selectBook=async function(id){
 };
 window.openFolder=function(id){set({view:'folder',selectedFolder:id,selectedBook:null});};
 window.openInbox=async function(){set({view:'inbox'});await loadInbox();render();};
+window.openFriends=async function(){set({view:'friend'});await loadFriends();render();};
 window.openShare=function(hlId){if(!S.allProfiles.length)loadProfiles();set({modal:{type:'share',hlId:hlId}});};
 
 (async function(){
