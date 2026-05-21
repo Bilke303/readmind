@@ -361,127 +361,52 @@ function parseKindleClippings(text){
 
 function viewImport(){
   var preview=S._kindlePreview||null;
-  var pasteMode=S._importTab||'kindle';
-  var html='<div class="page-header"><div><div class="page-title">Import</div><div class="page-subtitle">Highlights aus Kindle importieren</div></div></div>'
-    +'<div class="content">'
-    +'<div class="tabs" style="margin-bottom:20px">'
-    +'<div class="tab '+(pasteMode==='kindle'?'active':'')+'" onclick="set({_importTab:'kindle'})">📂 My Clippings</div>'
-    +'<div class="tab '+(pasteMode==='paste'?'active':'')+'" onclick="set({_importTab:'paste'})">📋 Kopieren & Einfügen</div>'
-    +'</div>';
+  var html='<div class="page-header"><div><div class="page-title">Import</div><div class="page-subtitle">Highlights importieren</div></div></div>'
+    +'<div class="content">';
 
-  if(pasteMode==='paste'){
-    var books=S.books;
+  if(!preview){
     html+='<div class="card" style="margin-bottom:16px">'
-      +'<div class="section-title" style="margin-bottom:8px">Aus Kindle App kopieren</div>'
-      +'<div style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.6">'
-      +'In der Kindle App: Text markieren → <strong>Kopieren</strong> → hier einfügen. Funktioniert auch mit mehreren Highlights gleichzeitig.'
-      +'</div>'
-      +'<div class="form-group"><label>Text einfügen</label>'
-      +'<textarea id="paste-text" placeholder="Hier den kopierten Text aus Kindle einfügen..." rows="6" style="min-height:140px"></textarea>'
-      +'</div>'
-      +'<div class="form-group"><label>Welchem Buch zuordnen?</label>'
-      +'<select id="paste-book" onchange="toggleNewBookFields()">'
-      +'<option value="">— Buch auswählen —</option>'
-      +'<option value="__new__">+ Neues Buch anlegen</option>'
-      +books.map(function(b){return '<option value="'+b.id+'">'+b.title+' — '+b.author+'</option>';}).join('')
-      +'</select></div>'
-      +'<div id="new-book-fields" style="display:none">'
-      +'<div class="form-group"><label>Buchtitel</label><input type="text" id="paste-book-title" placeholder="Titel..."/></div>'
-      +'<div class="form-group"><label>Autor:in</label><input type="text" id="paste-book-author" placeholder="Autor..."/></div>'
-      +'</div>'
-      +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'
-      +'<button class="btn btn-primary" onclick="submitPasteImport()">Importieren</button>'
+      +'<div class="section-title" style="margin-bottom:12px">Wie es funktioniert</div>'
+      +'<div style="font-size:14px;color:var(--text2);line-height:1.8">'
+      +'<div style="margin-bottom:8px">1. Kindle per USB an den Computer anschließen</div>'
+      +'<div style="margin-bottom:8px">2. Im Datei-Explorer: <code style="background:var(--bg2);padding:2px 6px;border-radius:4px">Kindle/documents/My Clippings.txt</code></div>'
+      +'<div style="margin-bottom:8px">3. Diese Datei hier hochladen</div>'
+      +'<div>4. Bücher und Highlights mit einem Klick importieren</div>'
       +'</div></div>'
-      +'<div class="card" style="background:var(--bg2);border:none">'
-      +'<div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:8px">So geht's auf dem iPhone</div>'
-      +'<div style="font-size:13px;color:var(--text3);line-height:1.8">'
-      +'<div>1. Kindle App öffnen → Buch aufschlagen</div>'
-      +'<div>2. Gewünschten Text gedrückt halten → markieren</div>'
-      +'<div>3. <strong>Kopieren</strong> antippen</div>'
-      +'<div>4. Zurück zu Readmind → hier einfügen → Buch auswählen</div>'
+      +'<div class="card">'
+      +'<div class="section-title" style="margin-bottom:12px">My Clippings.txt hochladen</div>'
+      +'<div class="photo-drop" onclick="document.getElementById(\'kindle-input\').click()" style="margin-bottom:0">'
+      +'<input type="file" id="kindle-input" accept=".txt" onchange="handleKindleFile(event)">'
+      +'<div style="font-size:32px;margin-bottom:8px">📚</div>'
+      +'<div style="font-size:14px;color:var(--text2)">My Clippings.txt hochladen</div>'
+      +'<div style="font-size:12px;color:var(--text3);margin-top:4px">Nur .txt Dateien</div>'
       +'</div></div>';
   } else {
-    if(!preview){
-      html+='<div class="card" style="margin-bottom:16px">'
-        +'<div class="section-title" style="margin-bottom:12px">My Clippings.txt</div>'
-        +'<div style="font-size:14px;color:var(--text2);line-height:1.8">'
-        +'<div style="margin-bottom:8px">1. Kindle per USB anschließen</div>'
-        +'<div style="margin-bottom:8px">2. Datei: <code style="background:var(--bg2);padding:2px 6px;border-radius:4px">Kindle/documents/My Clippings.txt</code></div>'
-        +'<div>3. Hier hochladen</div>'
-        +'</div></div>'
-        +'<div class="card">'
-        +'<div class="photo-drop" onclick="document.getElementById('kindle-input').click()" style="margin-bottom:0">'
-        +'<input type="file" id="kindle-input" accept=".txt" onchange="handleKindleFile(event)">'
-        +'<div style="font-size:32px;margin-bottom:8px">📚</div>'
-        +'<div style="font-size:14px;color:var(--text2)">My Clippings.txt hochladen</div>'
-        +'</div></div>';
-    } else {
-      var totalHL=preview.reduce(function(s,b){return s+b.highlights.length;},0);
-      html+='<div style="background:var(--accent-light);border:1px solid rgba(45,74,62,.15);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">'
-        +'<div><div style="font-size:14px;font-weight:500;color:var(--accent)">'+preview.length+' Bücher · '+totalHL+' Highlights erkannt</div>'
-        +'<div style="font-size:13px;color:var(--text3);margin-top:3px">Überprüfe die Vorschau und importiere alles</div></div>'
-        +'<div style="display:flex;gap:8px">'
-        +'<button class="btn btn-secondary btn-sm" onclick="set({_kindlePreview:null})">Neu laden</button>'
-        +'<button class="btn btn-primary" onclick="importKindle()">Alle importieren</button>'
-        +'</div></div>';
-      preview.forEach(function(b){
-        html+='<div class="card" style="margin-bottom:12px">'
-          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
-          +'<div><div class="book-title" style="font-size:15px">'+b.title+'</div>'
-          +'<div class="book-author">'+b.author+'</div></div>'
-          +'<span class="tag">'+b.highlights.length+' Highlights</span>'
-          +'</div>'
-          +b.highlights.slice(0,3).map(function(h){
-            return '<div style="font-size:13px;font-family:var(--serif);font-style:italic;border-left:2px solid var(--accent2);padding-left:10px;margin-bottom:8px;color:var(--text2)">'+h.text.substring(0,120)+(h.text.length>120?'...':'')+'</div>';
-          }).join('')
-          +(b.highlights.length>3?'<div style="font-size:12px;color:var(--text3);margin-top:4px">+ '+(b.highlights.length-3)+' weitere</div>':'')
-          +'</div>';
-      });
-    }
+    var totalHL=preview.reduce(function(s,b){return s+b.highlights.length;},0);
+    html+='<div style="background:var(--accent-light);border:1px solid rgba(45,74,62,.15);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">'
+      +'<div><div style="font-size:14px;font-weight:500;color:var(--accent)">'+preview.length+' Bücher · '+totalHL+' Highlights erkannt</div>'
+      +'<div style="font-size:13px;color:var(--text3);margin-top:3px">Überprüfe die Vorschau und importiere alles mit einem Klick</div></div>'
+      +'<div style="display:flex;gap:8px">'
+      +'<button class="btn btn-secondary btn-sm" onclick="set({_kindlePreview:null})">Neu laden</button>'
+      +'<button class="btn btn-primary" onclick="importKindle()">Alle importieren</button>'
+      +'</div></div>';
+    preview.forEach(function(b){
+      html+='<div class="card" style="margin-bottom:12px">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+        +'<div><div class="book-title" style="font-size:15px">'+b.title+'</div>'
+        +'<div class="book-author">'+b.author+'</div></div>'
+        +'<span class="tag">'+b.highlights.length+' Highlights</span>'
+        +'</div>'
+        +b.highlights.slice(0,3).map(function(h){
+          return '<div style="font-size:13px;font-family:var(--serif);font-style:italic;border-left:2px solid var(--accent2);padding-left:10px;margin-bottom:8px;color:var(--text2)">'+h.text.substring(0,120)+(h.text.length>120?'...':'')+'</div>';
+        }).join('')
+        +(b.highlights.length>3?'<div style="font-size:12px;color:var(--text3);margin-top:4px">+ '+(b.highlights.length-3)+' weitere Highlights</div>':'')
+        +'</div>';
+    });
   }
   html+='</div>';
   return html;
 }
-
-window.submitPasteImport=async function(){
-  var text=(document.getElementById('paste-text')||{value:''}).value.trim();
-  var bookSel=(document.getElementById('paste-book')||{value:''}).value;
-  if(!text){toast('Bitte Text einfügen','error');return;}
-  if(!bookSel){toast('Bitte Buch auswählen','error');return;}
-  var bookId;
-  if(bookSel==='__new__'){
-    var t=(document.getElementById('paste-book-title')||{value:''}).value.trim();
-    var a=(document.getElementById('paste-book-author')||{value:''}).value.trim();
-    if(!t||!a){toast('Titel und Autor eingeben','error');return;}
-    var color=BOOK_COLORS[S.books.length%BOOK_COLORS.length];
-    var res=await sb.from('books').insert({user_id:S.user.id,title:t,author:a,color:color,status:'reading',rating:0}).select().single();
-    if(res.error){toast(res.error.message,'error');return;}
-    S.books=[res.data].concat(S.books);
-    bookId=res.data.id;
-  }else{
-    bookId=bookSel;
-  }
-  // Split text into individual highlights (split by double newline or long dashes)
-  var lines=text.split(/\n{2,}|—{3,}/).map(function(l){return l.trim();}).filter(function(l){return l.length>5;});
-  if(!lines.length)lines=[text];
-  var imported=0;
-  for(var i=0;i<lines.length;i++){
-    var hl=lines[i];
-    if(!hl||hl.length<5)continue;
-    var res=await sb.from('highlights').insert({book_id:bookId,user_id:S.user.id,text:hl,note:null,page:null,image_url:null}).select().single();
-    if(!res.error){imported++;if(!S.highlights[bookId])S.highlights[bookId]=[];S.highlights[bookId]=[res.data].concat(S.highlights[bookId]);}
-  }
-  set({matrix:null});
-  toast(imported+' Highlight'+(imported!==1?'s':'')+' importiert');
-  document.getElementById('paste-text').value='';
-  document.getElementById('paste-book').value='';
-};
-
-window.toggleNewBookFields=function(){
-  var sel=document.getElementById('paste-book');
-  var fields=document.getElementById('new-book-fields');
-  if(sel&&fields)fields.style.display=sel.value==='__new__'?'block':'none';
-};
 
 window.handleKindleFile=function(event){
   var file=event.target.files[0];if(!file)return;
