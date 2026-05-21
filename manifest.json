@@ -2,20 +2,25 @@
   "name": "Readmind",
   "short_name": "Readmind",
   "description": "Deine persönliche Wissensmatrix aus Buchhighlights",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#F7F4EF",
   "theme_color": "#2D4A3E",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
