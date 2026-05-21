@@ -221,18 +221,15 @@ async function loadHighlights(bookId){
   S.highlights=Object.assign({},S.highlights);S.highlights[bookId]=res.data||[];
 }
 async function loadInbox(){
-  // Step 1: load shared highlights
   var res=await sb.from('shared_highlights').select('*').eq('to_user_id',S.user.id).order('shared_at',{ascending:false});
   var items=res.data||[];
   if(!items.length){S.inbox=[];S.inboxUnseen=0;return;}
 
-  // Step 2: load highlight texts
   var hlIds=items.map(function(i){return i.highlight_id;}).filter(Boolean);
-  var hlRes=await sb.from('highlights').select('id,text,page,book_id').in('id',hlIds);
+  var hlRes=await sb.from('highlights').select('id,text,page,book_id,image_url').in('id',hlIds);
   var hlMap={};
   (hlRes.data||[]).forEach(function(h){hlMap[h.id]=h;});
 
-  // Step 3: load books
   var bookIds=[...new Set((hlRes.data||[]).map(function(h){return h.book_id;}).filter(Boolean))];
   var bookMap={};
   if(bookIds.length){
@@ -240,7 +237,6 @@ async function loadInbox(){
     (bRes.data||[]).forEach(function(b){bookMap[b.id]=b;});
   }
 
-  // Step 4: load sender profiles
   var senderIds=[...new Set(items.map(function(i){return i.from_user_id;}).filter(Boolean))];
   var senderMap={};
   if(senderIds.length){
@@ -248,15 +244,20 @@ async function loadInbox(){
     (pRes.data||[]).forEach(function(p){senderMap[p.id]=p;});
   }
 
-  // Step 5: assemble
   var inbox=items.map(function(i){
     var hl=hlMap[i.highlight_id]||{};
     var book=bookMap[hl.book_id]||{};
     var sender=senderMap[i.from_user_id]||{};
-    return Object.assign({},i,{
-      highlights:Object.assign({},hl,{books:book}),
-      profiles:sender
-    });
+    return {
+      id:i.id, seen:i.seen, shared_at:i.shared_at,
+      from_user_id:i.from_user_id,
+      hlText:hl.text||'',
+      hlPage:hl.page||'',
+      hlImage:hl.image_url||null,
+      bookTitle:book.title||'',
+      bookAuthor:book.author||'',
+      senderName:sender.display_name||'Freund:in'
+    };
   });
   S.inbox=inbox;
   S.inboxUnseen=inbox.filter(function(i){return !i.seen;}).length;
@@ -843,14 +844,8 @@ function viewBook(b){
 
 function viewInbox(){
   var items=S.inbox.map(function(i){
-    var hl=i.highlights||{};
-    var book=(hl&&hl.books)||{};
-    var sender=i.profiles||{};
-    var text=hl.text||'';
-    var title=book.title||'';
-    var page=hl.page||'';
-    var name=sender.display_name||'Freund:in';
-    return '<div class="inbox-item '+(i.seen?'':'unseen')+'" onclick="markSeen(\''+i.id+'\')">'      +'<div class="inbox-from">Von '+name+(i.seen?'':' · <span style="color:var(--accent2)">neu</span>')+'</div>'      +(title?'<div class="inbox-book">📚 '+title+'</div>':'')      +(text?'<div class="inbox-text">'+text+'</div>':'')      +(page?'<div style="font-size:11px;color:var(--text3);margin-top:6px">S. '+page+'</div>':'')      +'</div>';
+    var imgUrl=i.hlImage?sb.storage.from('highlights').getPublicUrl(i.hlImage).data.publicUrl:null;
+    return '<div class="inbox-item '+(i.seen?'':'unseen')+'" onclick="markSeen(\''+i.id+'\')">'      +'<div class="inbox-from">Von '+i.senderName+(i.seen?'':' · <span style="color:var(--accent2)">neu</span>')+'</div>'      +(i.bookTitle?'<div class="inbox-book">📚 '+i.bookTitle+(i.bookAuthor?' · '+i.bookAuthor:'')+'</div>':'')      +(imgUrl?'<img src="'+imgUrl+'" style="width:100%;max-height:180px;object-fit:contain;border-radius:8px;margin:8px 0"/>':'')      +(i.hlText?'<div class="inbox-text">'+i.hlText+'</div>':'')      +(i.hlPage?'<div style="font-size:11px;color:var(--text3);margin-top:6px">S. '+i.hlPage+'</div>':'')      +'</div>';
   }).join('');
   return '<div class="page-header"><div><div class="page-title">Posteingang</div><div class="page-subtitle">'+S.inbox.length+' Highlights · '+S.inboxUnseen+' ungelesen</div></div></div>'
     +'<div class="content">'+(S.inbox.length?items:'<div class="empty"><div class="empty-icon">📬</div><div class="empty-title">Posteingang leer</div><div class="empty-sub">Wenn deine Freundin ein Highlight teilt, erscheint es hier.</div></div>')+'</div>';
