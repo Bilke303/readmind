@@ -221,9 +221,45 @@ async function loadHighlights(bookId){
   S.highlights=Object.assign({},S.highlights);S.highlights[bookId]=res.data||[];
 }
 async function loadInbox(){
-  var res=await sb.from('shared_highlights').select('*, highlights(text,page,book_id,books(title,author)), profiles!shared_highlights_from_user_id_fkey(display_name)').eq('to_user_id',S.user.id).order('shared_at',{ascending:false});
-  var inbox=res.data||[];
-  S.inbox=inbox;S.inboxUnseen=inbox.filter(function(i){return !i.seen;}).length;
+  // Step 1: load shared highlights
+  var res=await sb.from('shared_highlights').select('*').eq('to_user_id',S.user.id).order('shared_at',{ascending:false});
+  var items=res.data||[];
+  if(!items.length){S.inbox=[];S.inboxUnseen=0;return;}
+
+  // Step 2: load highlight texts
+  var hlIds=items.map(function(i){return i.highlight_id;}).filter(Boolean);
+  var hlRes=await sb.from('highlights').select('id,text,page,book_id').in('id',hlIds);
+  var hlMap={};
+  (hlRes.data||[]).forEach(function(h){hlMap[h.id]=h;});
+
+  // Step 3: load books
+  var bookIds=[...new Set((hlRes.data||[]).map(function(h){return h.book_id;}).filter(Boolean))];
+  var bookMap={};
+  if(bookIds.length){
+    var bRes=await sb.from('books').select('id,title,author').in('id',bookIds);
+    (bRes.data||[]).forEach(function(b){bookMap[b.id]=b;});
+  }
+
+  // Step 4: load sender profiles
+  var senderIds=[...new Set(items.map(function(i){return i.from_user_id;}).filter(Boolean))];
+  var senderMap={};
+  if(senderIds.length){
+    var pRes=await sb.from('profiles').select('id,display_name').in('id',senderIds);
+    (pRes.data||[]).forEach(function(p){senderMap[p.id]=p;});
+  }
+
+  // Step 5: assemble
+  var inbox=items.map(function(i){
+    var hl=hlMap[i.highlight_id]||{};
+    var book=bookMap[hl.book_id]||{};
+    var sender=senderMap[i.from_user_id]||{};
+    return Object.assign({},i,{
+      highlights:Object.assign({},hl,{books:book}),
+      profiles:sender
+    });
+  });
+  S.inbox=inbox;
+  S.inboxUnseen=inbox.filter(function(i){return !i.seen;}).length;
 }
 async function loadProfiles(){
   var res=await sb.from('profiles').select('*').neq('id',S.user.id);
