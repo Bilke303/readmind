@@ -302,8 +302,8 @@ async function analyze(){
   if(allHL.length<2){toast('Mindestens 2 Highlights erforderlich');return;}
   set({matrixLoading:true,view:'matrix'});
   var textLines=allHL.map(function(h){return '['+h.book+' von '+h.author+'] "'+h.text+'"';}).join('\n\n');
-  var schema='{"matrix":[{"thema":"Name","prozent":25,"beschreibung":"Kurz"}],"dominanteMuster":["M1","M2","M3"],"blindSpots":[{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"},{"vorhanden":"X","fehlend":"Y"}],"puzzleStueck":"Ein Satz.","naechstesBuch":"Titel - Autor","kerninsight":"Ein präziser Satz."}';
-  var promptText='Analysiere diese Highlights:\n\n'+textLines+'\n\nAntworte NUR als reines JSON:\n'+schema+'\n\n4-6 matrix-Einträge, Summe=100.';
+  var schema='{"matrix":[{"thema":"Name","prozent":25,"beschreibung":"Kurze Beschreibung des Themas"}],"dominanteMuster":["Muster 1","Muster 2","Muster 3"],"blindSpots":[{"vorhanden":"Was viel vorkommt","fehlend":"Was unterrepräsentiert ist"},{"vorhanden":"...","fehlend":"..."},{"vorhanden":"...","fehlend":"..."}],"puzzleStueck":"Ein konkreter Satz über die Entwicklungsbrücke.","kerninsight":"Ein präziser, ehrlicher Satz über das Leseprofil.","buchempfehlungen":[{"titel":"Buchtitel","autor":"Autor","grund":"Ein Satz warum dieses Buch genau jetzt passt"},{"titel":"Buchtitel","autor":"Autor","grund":"Ein Satz warum"},{"titel":"Buchtitel","autor":"Autor","grund":"Ein Satz warum"},{"titel":"Buchtitel","autor":"Autor","grund":"Ein Satz warum"},{"titel":"Buchtitel","autor":"Autor","grund":"Ein Satz warum"}]}';
+  var promptText='Analysiere diese Highlights einer Leserin und erstelle eine tiefe Wissensmatrix:\n\n'+textLines+'\n\nWichtig für die Buchempfehlungen: Empfehle 5 konkrete, real existierende Bücher die gezielt die blinden Flecken adressieren oder die Entwicklungsbrücke stärken. Keine generischen Klassiker sondern präzise passende Empfehlungen.\n\nAntworte NUR als reines JSON:\n'+schema+'\n\n4-6 matrix-Einträge, Summe=100.';
   var msgContent=[{type:'text',text:promptText}];
   var imageHLs=allHL.filter(function(h){return h.image;});
   for(var i=0;i<imageHLs.length;i++){
@@ -761,8 +761,12 @@ function viewMatrix(){
     +'</div></div>'
     +'<div class="grid-2">'
     +'<div class="card"><div class="section-header"><div class="section-title">Blinde Flecken</div></div>'+bsp+'</div>'
-    +'<div class="card"><div class="section-title" style="margin-bottom:10px">Entwicklungsbrücke</div><div class="insight-card"><div class="insight-label">Fehlendes Puzzlestück</div><div class="insight-text">'+m.puzzleStueck+'</div></div><div style="margin-top:12px"><div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:5px">Empfehlung</div><div style="font-size:14px;font-family:var(--serif);font-style:italic;color:var(--accent)">→ '+m.naechstesBuch+'</div></div></div>'
-    +'</div></div>';
+    +'<div class="card"><div class="section-title" style="margin-bottom:10px">Entwicklungsbrücke</div><div class="insight-card"><div class="insight-label">Fehlendes Puzzlestück</div><div class="insight-text">'+m.puzzleStueck+'</div></div></div>'
+    +'</div></div>'
+    +(m.buchempfehlungen&&m.buchempfehlungen.length?'<div class="card" style="margin-top:16px"><div class="section-header"><div class="section-title">📚 Buchempfehlungen für dich</div></div><div style="font-size:13px;color:var(--text3);margin-bottom:16px">Basierend auf deiner Matrix und deinen blinden Flecken</div>'
+      +m.buchempfehlungen.map(function(b,i){return '<div style="display:flex;gap:16px;padding:14px 0;border-bottom:1px solid var(--border2)'+(i===m.buchempfehlungen.length-1?';border-bottom:none':'')+'"><div style="width:28px;height:28px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:14px;flex-shrink:0;margin-top:2px">'+(i+1)+'</div><div><div style="font-family:var(--serif);font-size:15px;font-weight:500;margin-bottom:2px">'+b.titel+'</div><div style="font-size:13px;color:var(--text3);margin-bottom:6px">'+b.autor+'</div><div style="font-size:13px;color:var(--text2);line-height:1.5">'+b.grund+'</div></div></div>';}).join('')
+      +'</div>':'')
+    +'</div>';
 }
 
 function colorSwatches(selected,fn){
