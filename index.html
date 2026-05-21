@@ -501,38 +501,32 @@ function renderApp(){
 function renderSidebar(){
   var name=S.profile&&S.profile.display_name?S.profile.display_name:(S.user.email||'').split('@')[0];
   var folderItems=S.folders.map(function(f){
-    return '<div class="folder-nav-item '+(S.view==='folder'&&S.selectedFolder===f.id?'active':'')+'" onclick="openFolder(\''+f.id+'\')">'
-      +'<div class="folder-dot" style="background:'+f.color+'"></div>'
-      +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+f.name+'</span>'
-      +'<span style="font-size:11px;color:rgba(232,240,236,0.3)">'+folderBooks(f.id).length+'</span>'
-      +'</div>';
+    return '<div class="folder-nav-item '+(S.view==='folder'&&S.selectedFolder===f.id?'active':'')+'" onclick="openFolder(\''+f.id+'\')"><div class="folder-dot" style="background:'+f.color+'"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+f.name+'</span><span style="font-size:11px;color:rgba(232,240,236,0.3)">'+folderBooks(f.id).length+'</span></div>';
   }).join('');
   var bookItems=S.books.slice(0,6).map(function(b){
-    return '<div class="book-nav-item" onclick="selectBook(\''+b.id+'\')">'
-      +'<div class="book-dot" style="background:'+b.color+'"></div>'
-      +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+b.title+'</span>'
-      +'</div>';
+    return '<div class="book-nav-item" onclick="selectBook(\''+b.id+'\')"><div class="book-dot" style="background:'+b.color+'"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+b.title+'</span></div>';
   }).join('');
-  return '<div class="sidebar">'
-    +'<div class="sidebar-logo">readmind<span>Wissensmatrix</span></div>'
-    +'<nav>'
-    +'<div class="nav-item '+(S.view==='library'&&!S.selectedBook?'active':'')+'" onclick="set({view:\'library\',selectedBook:null,selectedFolder:null})">📚 Bibliothek</div>'
-    +'<div class="nav-item '+(S.view==='folders'||S.view==='folder'?'active':'')+'" onclick="set({view:\'folders\',selectedBook:null})">📁 Ordner</div>'
-    +'<div class="nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})">🧠 Matrix</div>'
-    +'<div class="nav-item '+(S.view==\'import\'?\'active\':\'\')+\'" onclick="set({view:\'import\'})">📥 Import</div>'
-    +'<div class="nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()">📬 Posteingang'+(S.inboxUnseen>0?'<span class="nav-badge">'+S.inboxUnseen+'</span>':'')+'</div>'
-    +'<div class="nav-item '+(S.view==='friend'?'active':'')+'" onclick="set({view:\'friend\'})">👤 Freundin</div>'
-    +'<div class="nav-section"><span>Ordner</span><button class="nav-section-btn" onclick="set({modal:{type:\'addFolder\'}})">+</button></div>'
-    +folderItems
-    +(S.books.length?'<div class="nav-section"><span>Bücher</span></div>'+bookItems:'')
-    +'</nav>'
-    +'<div class="user-info">'
-    +'<div class="user-name">'+name+'</div>'
-    +'<div class="user-email">'+(S.user.email||'')+'</div>'
-    +'<div style="display:flex;gap:8px;margin-top:10px">'
-    +'<button class="btn btn-secondary btn-sm" onclick="set({modal:{type:\'settings\'}})">⚙️</button>'
-    +'<button class="btn btn-secondary btn-sm" onclick="signOut()">Logout</button>'
-    +'</div></div></div>';
+  var html='<div class="sidebar">';
+  html+='<div class="sidebar-logo">readmind<span>Wissensmatrix</span></div>';
+  html+='<nav>';
+  html+='<div class="nav-item '+(S.view==='library'&&!S.selectedBook?'active':'')+'" onclick="set({view:\'library\',selectedBook:null,selectedFolder:null})">📚 Bibliothek</div>';
+  html+='<div class="nav-item '+(S.view==='folders'||S.view==='folder'?'active':'')+'" onclick="set({view:\'folders\',selectedBook:null})">📁 Ordner</div>';
+  html+='<div class="nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})">🧠 Matrix</div>';
+  html+='<div class="nav-item '+(S.view==='import'?'active':'')+'" onclick="set({view:\'import\'})">📥 Import</div>';
+  html+='<div class="nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()">📬 Posteingang'+(S.inboxUnseen>0?'<span class="nav-badge">'+S.inboxUnseen+'</span>':'')+'</div>';
+  html+='<div class="nav-item '+(S.view==='friend'?'active':'')+'" onclick="set({view:\'friend\'})">👤 Freundin</div>';
+  html+='<div class="nav-section"><span>Ordner</span><button class="nav-section-btn" onclick="set({modal:{type:\'addFolder\'}})">+</button></div>';
+  html+=folderItems;
+  html+=(S.books.length?'<div class="nav-section"><span>Bücher</span></div>'+bookItems:'');
+  html+='</nav>';
+  html+='<div class="user-info">';
+  html+='<div class="user-name">'+name+'</div>';
+  html+='<div class="user-email">'+(S.user.email||'')+'</div>';
+  html+='<div style="display:flex;gap:8px;margin-top:10px">';
+  html+='<button class="btn btn-secondary btn-sm" onclick="set({modal:{type:\'settings\'}})">⚙️</button>';
+  html+='<button class="btn btn-secondary btn-sm" onclick="signOut()">Logout</button>';
+  html+='</div></div></div>';
+  return html;
 }
 
 function renderBottomNav(){
