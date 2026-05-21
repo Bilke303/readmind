@@ -1,8 +1,8 @@
-const CACHE = 'readmind-v1';
-const ASSETS = ['/', '/index.html', '/app.js', '/manifest.json'];
+const CACHE = 'readmind-v3';
+const ASSETS = ['/app', '/app.html', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(() => {})));
   self.skipWaiting();
 });
 
@@ -15,8 +15,10 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('api.anthropic.com')) return;
+  if (e.request.url.includes('supabase.co')) return;
   if (e.request.url.includes('fonts.googleapis.com')) return;
+  if (e.request.url.includes('jsdelivr.net')) return;
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match('/index.html')))
+    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match('/app.html')))
   );
 });
