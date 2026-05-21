@@ -231,14 +231,26 @@ async function loadProfiles(){
 }
 
 async function loadFriends(){
-  var res=await sb.from('friendships')
-    .select('*, requester:profiles!friendships_requester_id_fkey(id,display_name,email), addressee:profiles!friendships_addressee_id_fkey(id,display_name,email)')
-    .or('requester_id.eq.'+S.user.id+',addressee_id.eq.'+S.user.id);
-  var data=res.data||[];
-  S.friends=data.filter(function(f){return f.status==='accepted';}).map(function(f){
-    return f.requester_id===S.user.id?f.addressee:f.requester;
-  });
-  S.friendRequests=data.filter(function(f){return f.status==='pending'&&f.addressee_id===S.user.id;}).map(function(f){
+  // Load sent requests
+  var sent=await sb.from('friendships')
+    .select('*, addressee:profiles!friendships_addressee_id_fkey(id,display_name,email)')
+    .eq('requester_id', S.user.id);
+  // Load received requests  
+  var received=await sb.from('friendships')
+    .select('*, requester:profiles!friendships_requester_id_fkey(id,display_name,email)')
+    .eq('addressee_id', S.user.id);
+
+  var sentData=sent.data||[];
+  var receivedData=received.data||[];
+
+  // Friends = accepted from both directions
+  S.friends=[
+    ...sentData.filter(function(f){return f.status==='accepted';}).map(function(f){return Object.assign({},f.addressee,{friendshipId:f.id});}).filter(Boolean),
+    ...receivedData.filter(function(f){return f.status==='accepted';}).map(function(f){return Object.assign({},f.requester,{friendshipId:f.id});}).filter(Boolean)
+  ];
+
+  // Pending requests received by me
+  S.friendRequests=receivedData.filter(function(f){return f.status==='pending';}).map(function(f){
     return {id:f.id,from:f.requester};
   });
 }
