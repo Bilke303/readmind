@@ -530,14 +530,15 @@ function renderSidebar(){
 }
 
 function renderBottomNav(){
-  return '<div class="bottom-nav">'
-    +'<div class="bottom-nav-item '+(S.view==='library'?'active':'')+'" onclick="set({view:\'library\',selectedBook:null})"><span class="bottom-nav-icon">📚</span><span>Bücher</span></div>'
-    +'<div class="bottom-nav-item '+(S.view==='folders'||S.view==='folder'?'active':'')+'" onclick="set({view:\'folders\'})"><span class="bottom-nav-icon">📁</span><span>Ordner</span></div>'
-    +'<div class="bottom-nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})"><span class="bottom-nav-icon">🧠</span><span>Matrix</span></div>
-    +'<div class="bottom-nav-item '+(S.view==="import"?"active":"")+' " onclick="set({view:\'import\'})" ><span class="bottom-nav-icon">📥</span><span>Import</span></div>''
-    +'<div class="bottom-nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()" style="position:relative"><span class="bottom-nav-icon">📬</span>'+(S.inboxUnseen>0?'<span class="bottom-badge">'+S.inboxUnseen+'</span>':'')+'<span>Eingang</span></div>'
-    +'<div class="bottom-nav-item" onclick="set({modal:{type:\'settings\'}})"><span class="bottom-nav-icon">⚙️</span><span>More</span></div>'
-    +'</div>';
+  var html='<div class="bottom-nav">';
+  html+='<div class="bottom-nav-item '+(S.view==='library'?'active':'')+'" onclick="set({view:\'library\',selectedBook:null})"><span class="bottom-nav-icon">📚</span><span>Bücher</span></div>';
+  html+='<div class="bottom-nav-item '+(S.view==='folders'||S.view==='folder'?'active':'')+'" onclick="set({view:\'folders\'})"><span class="bottom-nav-icon">📁</span><span>Ordner</span></div>';
+  html+='<div class="bottom-nav-item '+(S.view==='matrix'?'active':'')+'" onclick="set({view:\'matrix\'})"><span class="bottom-nav-icon">🧠</span><span>Matrix</span></div>';
+  html+='<div class="bottom-nav-item '+(S.view==='import'?'active':'')+'" onclick="set({view:\'import\'})"><span class="bottom-nav-icon">📥</span><span>Import</span></div>';
+  html+='<div class="bottom-nav-item '+(S.view==='inbox'?'active':'')+'" onclick="openInbox()" style="position:relative"><span class="bottom-nav-icon">📬</span>'+(S.inboxUnseen>0?'<span class="bottom-badge">'+S.inboxUnseen+'</span>':'')+'<span>Eingang</span></div>';
+  html+='<div class="bottom-nav-item" onclick="set({modal:{type:\'settings\'}})"><span class="bottom-nav-icon">⚙️</span><span>More</span></div>';
+  html+='</div>';
+  return html;
 }
 
 function viewLibrary(){
@@ -866,7 +867,7 @@ window.splitHighlights=async function(bookId){
   var text=(document.getElementById('paste-text')||{value:''}).value.trim();
   if(!text){toast('Bitte Text einfügen','error');return;}
   if(!S.anthropicKey){toast('API Key fehlt — bitte in Einstellungen eintragen','error');return;}
-  var btn=document.querySelector('[onclick="splitHighlights(''+bookId+'')"]');
+  var btn=document.getElementById('split-btn-'+bookId);
   if(btn){btn.disabled=true;btn.textContent='⏳ Analysiere...';}
   try{
     var r=await fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
