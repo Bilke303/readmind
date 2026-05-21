@@ -172,7 +172,13 @@ const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
 
 let S={user:null,profile:null,view:'library',books:[],highlights:{},inbox:[],inboxUnseen:0,folders:[],selectedFolder:null,selectedBook:null,matrix:null,matrixLoading:false,modal:null,authTab:'login',anthropicKey:localStorage.getItem(ANT_KEY)||'',allProfiles:[],photoTab:'text',selectedColor:FOLDER_COLORS[0],selectedStars:0,_pendingImagePath:null};
 
-function set(p){S=Object.assign({},S,p);render();}
+function set(p){
+  // Always preserve anthropicKey from localStorage
+  var merged=Object.assign({},S,p);
+  if(!merged.anthropicKey){merged.anthropicKey=localStorage.getItem(ANT_KEY)||'';}
+  S=merged;
+  render();
+}
 function toast(msg,type){
   var el=document.getElementById('toast');if(el)el.remove();
   el=document.createElement('div');el.id='toast';
@@ -294,7 +300,8 @@ async function markSeen(id){
 }
 
 async function analyze(){
-  if(!S.anthropicKey){toast('API Key fehlt','error');set({modal:{type:'settings'}});return;}
+  S.anthropicKey=S.anthropicKey||localStorage.getItem(ANT_KEY)||'';
+  if(!S.anthropicKey){toast('API Key fehlt — bitte in ⚙️ Einstellungen eintragen','error');set({modal:{type:'settings'}});return;}
   var allHL=S.books.reduce(function(acc,b){
     var hls=(S.highlights[b.id]||[]).map(function(h){return {book:b.title,author:b.author,text:h.text,image:h.image_url};});
     return acc.concat(hls);
